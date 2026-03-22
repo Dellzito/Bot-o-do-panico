@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pânico ANBU</title>
+    <title>Pânico ANBU - Realtime</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: white; font-family: sans-serif; user-select: none; overflow: hidden; }
@@ -18,6 +18,8 @@
             0% { box-shadow: 0 0 10px #ef4444; transform: scale(1); }
             100% { box-shadow: 0 0 50px #ef4444, inset 0 0 20px #ef4444; transform: scale(1.02); }
         }
+
+        .online-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 6px; box-shadow: 0 0 8px #22c55e; }
     </style>
 </head>
 <body class="flex items-center justify-center h-screen p-4">
@@ -27,8 +29,8 @@
     <div id="tela-login" class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-gray-700 z-50">
         <h1 class="text-3xl font-black text-red-500 mb-6">RÁDIO ANBU</h1>
         <input id="input-nick" type="text" placeholder="SEU NICK..." class="w-full p-4 rounded-xl bg-gray-900 border border-gray-600 mb-4 text-center text-xl font-bold uppercase focus:border-red-500 outline-none">
-        <button onclick="iniciarSistema()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-black text-lg transition shadow-lg">CONECTAR</button>
-        <p class="text-gray-400 text-[10px] mt-4">O som será liberado ao conectar.</p>
+        <button onclick="iniciarSistema()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-black text-lg transition shadow-lg">CONECTAR RÁDIO</button>
+        <p class="text-gray-400 text-[10px] mt-4 uppercase">Conexão Realtime Estabelecida</p>
     </div>
 
     <div id="tela-radio" class="hidden w-full max-w-md space-y-4">
@@ -38,7 +40,7 @@
                 <span id="nick-display" class="font-black text-xl text-white uppercase"></span>
             </div>
             <div class="flex gap-2">
-                <button onclick="abrirPopout()" class="bg-gray-700 px-4 py-3 rounded-lg font-bold hover:bg-gray-600 text-sm" title="Modo Overlay">🔲</button>
+                <button onclick="abrirPopout()" class="bg-gray-700 px-4 py-3 rounded-lg font-bold hover:bg-gray-600 text-sm" title="Modo Janela Pequena">🔲</button>
                 <button id="btn-som" onclick="alternarSom()" class="bg-green-600 px-4 py-3 rounded-lg font-bold hover:bg-green-500 text-sm transition-colors shadow-[0_0_10px_#16a34a]">🔊 SOM ON</button>
             </div>
         </div>
@@ -48,23 +50,29 @@
             <span id="texto-panico" class="font-black text-3xl text-gray-500 uppercase tracking-widest">PÂNICO</span>
             <span id="texto-quem" class="hidden mt-4 font-black text-white text-2xl bg-black px-6 py-2 rounded-xl"></span>
         </button>
+
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
+            <div id="lista-online" class="flex flex-wrap gap-2 text-xs"></div>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
+        // SUAS CHAVES DO REALTIME DATABASE
         const firebaseConfig = {
-            apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
-            authDomain: "g-2cb53.firebaseapp.com",
-            projectId: "g-2cb53",
-            storageBucket: "g-2cb53.firebasestorage.app",
-            messagingSenderId: "292095146978",
-            appId: "1:292095146978:web:836d833230907d081017bb"
+            apiKey: "AIzaSyAAyP4T4uoKtn4R170k61CenZJNwAoK9L8",
+            authDomain: "panico-7c388.firebaseapp.com",
+            databaseURL: "https://panico-7c388-default-rtdb.firebaseio.com",
+            projectId: "panico-7c388",
+            storageBucket: "panico-7c388.firebasestorage.app",
+            messagingSenderId: "716459662213",
+            appId: "1:716459662213:web:54b2f4f9204b5a116042ec"
         };
 
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const db = getDatabase(app);
 
         let meuNick = "";
         let somLigado = true;
@@ -78,33 +86,40 @@
             iniciarModoPopout();
         }
 
-        // 1. ENTRAR NO SISTEMA E DESTRAVAR O NAVEGADOR
+        // 1. LOGIN & LIBERAÇÃO DO ÁUDIO
         window.iniciarSistema = () => {
             const input = document.getElementById("input-nick").value.trim().toUpperCase();
             if(!input) return alert("Identifique-se!");
             
             meuNick = input;
 
-            // O TRUQUE DE MESTRE: Toca mutado para o Chrome liberar, depois pausa e desmuta.
+            // Destrava o áudio silenciosamente no clique
             audioPlayer.muted = true;
             audioPlayer.play().then(() => {
                 audioPlayer.pause();
                 audioPlayer.currentTime = 0;
-                audioPlayer.muted = false; // Áudio 100% destravado e pronto pro uso!
+                audioPlayer.muted = false; // Áudio 100% destravado!
                 
-                // Vai pra tela
                 document.getElementById("tela-login").classList.add("hidden");
                 document.getElementById("tela-radio").classList.remove("hidden");
                 document.getElementById("nick-display").innerText = meuNick;
                 
-                escutarAlertaGlobal();
+                iniciarPresencaAutomatica();
+                escutarPânico();
             }).catch(e => {
-                console.error("Erro ao liberar áudio:", e);
-                alert("O navegador bloqueou o áudio. Tente clicar em 'Conectar' novamente.");
+                alert("Erro ao ativar áudio. Pressione OK e depois clique no botão de som para tentar novamente.");
+                console.log(e);
+                
+                // Força a entrada mesmo se der erro no áudio
+                document.getElementById("tela-login").classList.add("hidden");
+                document.getElementById("tela-radio").classList.remove("hidden");
+                document.getElementById("nick-display").innerText = meuNick;
+                iniciarPresencaAutomatica();
+                escutarPânico();
             });
         };
 
-        // 2. CONTROLE DE SOM MANUAL
+        // 2. CONTROLE DO SOM
         window.alternarSom = () => {
             somLigado = !somLigado;
             const btn = document.getElementById("btn-som");
@@ -112,6 +127,11 @@
             if (somLigado) {
                 btn.innerText = "🔊 SOM ON";
                 btn.className = "bg-green-600 px-4 py-3 rounded-lg font-bold hover:bg-green-500 text-sm transition-colors shadow-[0_0_10px_#16a34a]";
+                
+                // Tenta destravar novamente se falhou no login
+                audioPlayer.muted = true;
+                audioPlayer.play().then(() => { audioPlayer.pause(); audioPlayer.muted = false; }).catch(e=>console.log(e));
+
             } else {
                 btn.innerText = "🔇 SOM OFF";
                 btn.className = "bg-gray-700 px-4 py-3 rounded-lg font-bold hover:bg-gray-600 text-sm transition-colors";
@@ -120,55 +140,84 @@
             }
         };
 
-        // 3. ENVIAR O SINAL DE PÂNICO
-        window.enviarAlerta = async () => {
+        // 3. ENVIAR PÂNICO
+        window.enviarAlerta = () => {
             if(!meuNick) return;
-            const ref = doc(db, "sistema_alerta", "status");
-            await setDoc(ref, { alerta: true, quem: meuNick, timestamp: Date.now() });
+            const panicoRef = ref(db, 'alerta_global');
+            set(panicoRef, { ativo: true, quem: meuNick, timestamp: Date.now() });
             
-            setTimeout(() => setDoc(ref, { alerta: false }), 12000); // 12 seg e desliga
+            // Desliga o alarme em 10 segundos
+            setTimeout(() => set(panicoRef, { ativo: false, quem: "" }), 10000);
         };
 
-        // 4. OUVIR O SINAL DE TODOS
-        function escutarAlertaGlobal() {
-            onSnapshot(doc(db, "sistema_alerta", "status"), (documento) => {
-                const dados = documento.data();
+        // 4. OUVIR O PÂNICO
+        function escutarPânico() {
+            const panicoRef = ref(db, 'alerta_global');
+            onValue(panicoRef, (snapshot) => {
+                const dados = snapshot.val();
                 const botao = document.getElementById("btn-panico");
                 const txtPanico = document.getElementById("texto-panico");
                 const txtQuem = document.getElementById("texto-quem");
 
-                if (dados && dados.alerta === true) {
-                    
-                    // Visual
+                if (dados && dados.ativo === true) {
                     botao.classList.add("alerta-piscando");
-                    txtPanico.innerText = "APOIAR NINJA!";
+                    txtPanico.innerText = "APOIO SOLICITADO!";
                     txtPanico.classList.replace("text-gray-500", "text-white");
                     txtQuem.innerText = dados.quem;
                     txtQuem.classList.remove("hidden");
 
-                    // Tocar Áudio
                     if (somLigado) {
-                        audioPlayer.play().catch(e => console.error("Falha ao tocar som:", e));
+                        audioPlayer.currentTime = 0;
+                        audioPlayer.play().catch(e => console.log("Áudio bloqueado:", e));
                     }
                 } else {
-                    // Visual
                     botao.classList.remove("alerta-piscando");
                     txtPanico.innerText = "PÂNICO";
                     txtPanico.classList.replace("text-white", "text-gray-500");
                     txtQuem.classList.add("hidden");
 
-                    // Parar Áudio
                     audioPlayer.pause();
                     audioPlayer.currentTime = 0;
                 }
             });
         }
 
-        // 5. MODO JANELINHA (OVERLAY)
+        // 5. MÁGICA DA PRESENÇA (O diferencial do Realtime Database)
+        function iniciarPresencaAutomatica() {
+            const connectedRef = ref(db, '.info/connected');
+            const meuUserRef = ref(db, 'online/' + meuNick);
+
+            onValue(connectedRef, (snap) => {
+                if (snap.val() === true) {
+                    // Se a internet cair ou fechar a aba, remove do banco NA HORA!
+                    onDisconnect(meuUserRef).remove();
+                    // Entra na lista de online
+                    set(meuUserRef, { online: true });
+                }
+            });
+
+            // Escutar todos que estão online para montar a lista
+            const listaOnlineRef = ref(db, 'online');
+            onValue(listaOnlineRef, (snapshot) => {
+                const listaDiv = document.getElementById("lista-online");
+                listaDiv.innerHTML = "";
+                const usuarios = snapshot.val();
+
+                if (usuarios) {
+                    Object.keys(usuarios).forEach(nick => {
+                        listaDiv.innerHTML += `<div class="bg-gray-900 px-3 py-1.5 rounded border border-gray-600 flex items-center shadow"><span class="online-dot"></span>${nick}</div>`;
+                    });
+                } else {
+                    listaDiv.innerHTML = '<span class="text-gray-500 italic">Nenhum ninja na escuta.</span>';
+                }
+            });
+        }
+
+        // 6. POPOUT OVERLAY
         window.abrirPopout = () => {
             const w = 250, h = 300;
             const l = window.screen.width - w;
-            window.open(`${window.location.origin}${window.location.pathname}?popout=true&nick=${meuNick}`, 'ANBU_OVERLAY', `width=${w},height=${h},left=${l},top=0`);
+            window.open(`${window.location.origin}${window.location.pathname}?popout=true&nick=${meuNick}`, 'ANBU_OVERLAY', `width=${w},height=${h},left=${l},top=0,menubar=no,toolbar=no,status=no`);
         };
 
         function iniciarModoPopout() {
@@ -178,24 +227,24 @@
                     <button id="btn-panico-pop" onclick="enviarAlerta()" class="flex-grow bg-gray-800 border-2 border-gray-700 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-inner">
                         <span class="text-4xl mb-2">🚨</span>
                         <span id="txt-pop" class="font-black text-2xl text-gray-500">PÂNICO</span>
-                        <span id="txt-quem-pop" class="hidden mt-2 font-bold text-white bg-black px-2 py-1 rounded text-sm"></span>
+                        <span id="txt-quem-pop" class="hidden mt-2 font-bold text-white bg-black px-2 py-1 rounded text-sm text-center"></span>
                     </button>
                 </div>
             `;
 
-            window.enviarAlerta = async () => {
-                const ref = doc(db, "sistema_alerta", "status");
-                await setDoc(ref, { alerta: true, quem: meuNick, timestamp: Date.now() });
-                setTimeout(() => setDoc(ref, { alerta: false }), 12000);
+            window.enviarAlerta = () => {
+                const refPanico = ref(db, 'alerta_global');
+                set(refPanico, { ativo: true, quem: meuNick, timestamp: Date.now() });
+                setTimeout(() => set(refPanico, { ativo: false, quem: "" }), 10000);
             };
 
-            onSnapshot(doc(db, "sistema_alerta", "status"), (documento) => {
-                const dados = documento.data();
+            onValue(ref(db, 'alerta_global'), (snapshot) => {
+                const dados = snapshot.val();
                 const bg = document.getElementById("bg-popout");
                 const txt = document.getElementById("txt-pop");
                 const txtQuem = document.getElementById("txt-quem-pop");
 
-                if (dados && dados.alerta === true) {
+                if (dados && dados.ativo === true) {
                     bg.classList.add("alerta-piscando", "border-red-500");
                     txt.innerText = "ALERTA!";
                     txt.classList.replace("text-gray-500", "text-white");
