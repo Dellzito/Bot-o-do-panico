@@ -19,28 +19,29 @@
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <audio id="alarmSound" preload="auto" loop src="cebolinha-bobo-do-outro-lado.mp3"></audio>
+    <audio id="alarmSound" src="https://raw.githubusercontent.com/Dellzito/Bot-o-do-panico/main/cebolinha-bobo-do-outro-lado.mp3" preload="auto" loop></audio>
 
     <div id="login-screen" class="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-sm z-50 text-center">
         <h1 class="text-2xl font-bold text-red-500 mb-6 uppercase italic font-black">Frequência ANBU</h1>
         <input id="nick-input" type="text" placeholder="SEU NICK" class="w-full p-4 rounded-xl bg-slate-800 border border-slate-700 mb-4 text-white font-bold uppercase">
-        <button id="btn-entrar" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-bold transition">CONECTAR E ATIVAR RÁDIO</button>
+        <button id="btn-entrar" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-bold transition shadow-lg shadow-red-900/40">CONECTAR RÁDIO</button>
+        <p class="text-[10px] text-gray-500 mt-4 uppercase">Sinal estabilizado</p>
     </div>
 
     <div id="radio-panel" class="hidden w-full max-w-2xl space-y-4">
         <div id="main-card" class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl transition-all duration-300">
             <div class="flex justify-between items-center mb-6">
                 <div>
-                    <h2 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Operador</h2>
+                    <h2 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Operador na Escuta</h2>
                     <p id="display-nick" class="text-xl font-black text-white italic uppercase"></p>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="fazerPopOut()" class="p-3 bg-slate-800 rounded-xl border border-slate-700 text-blue-400">🔲</button>
-                    <button onclick="toggleAudioManualmente()" id="audio-btn" class="p-3 bg-slate-800 rounded-xl border border-slate-700">🔇</button>
+                    <button onclick="fazerPopOut()" class="p-3 bg-slate-800 rounded-xl border border-slate-700 text-blue-400 hover:bg-slate-700" title="Destacar Janelinha">🔲</button>
+                    <button onclick="toggleAudioManualmente()" id="audio-btn" class="p-3 bg-slate-800 rounded-xl border border-slate-700 hover:bg-slate-700" title="Ligar/Desligar Som">🔇</button>
                 </div>
             </div>
 
-            <button id="main-panic-btn" class="w-full py-20 rounded-2xl bg-slate-950 border-2 border-slate-800 text-2xl font-black text-slate-800 transition-all">
+            <button id="main-panic-btn" class="w-full py-20 rounded-2xl bg-slate-950 border-2 border-slate-800 text-2xl font-black text-slate-800 transition-all active:scale-95 shadow-inner">
                 🚨 DISPARAR PÂNICO
             </button>
 
@@ -74,30 +75,45 @@
         let audioHabilitado = false;
         const audioTag = document.getElementById("alarmSound");
 
-        // LÓGICA DE LOGIN COM ATIVAÇÃO DE ÁUDIO
-        document.getElementById('btn-entrar').addEventListener('click', () => {
-            const nick = document.getElementById('nick-input').value.trim().toUpperCase();
-            if(!nick) return alert("Identifique-se!");
-            
-            meuNick = nick;
+        // VERIFICA SE É A JANELA POP-OUT ANTES DE CARREGAR A TELA DE LOGIN
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('popout')) {
+            meuNick = urlParams.get('nick');
+            document.getElementById('login-screen').classList.add('hidden');
+            configurarModoPopOut();
+        }
 
-            // O SEGREDO ESTÁ AQUI: O navegador libera o som após esse clique
-            audioTag.play().then(() => {
-                audioTag.pause();
-                audioTag.currentTime = 0;
-                audioHabilitado = true;
-                finalizarLogin();
-            }).catch(e => {
-                console.error("Erro ao iniciar áudio:", e);
-                audioHabilitado = true; // Forçamos mesmo assim para tentar depois
-                finalizarLogin();
+        // LÓGICA DE LOGIN DA ABA PRINCIPAL
+        const btnEntrar = document.getElementById('btn-entrar');
+        if (btnEntrar) {
+            btnEntrar.addEventListener('click', () => {
+                const nick = document.getElementById('nick-input').value.trim().toUpperCase();
+                if(!nick) return alert("Identifique-se, Ninja!");
+                
+                meuNick = nick;
+
+                // DESBLOQUEIO DE ÁUDIO SILENCIOSO (Volume 0)
+                audioTag.volume = 0; 
+                audioTag.play().then(() => {
+                    audioTag.pause();
+                    audioTag.currentTime = 0;
+                    audioTag.volume = 1; // Retorna o volume ao normal
+                    audioHabilitado = true;
+                    finalizarLogin();
+                }).catch(e => {
+                    console.error("Erro no áudio automático:", e);
+                    audioHabilitado = false; 
+                    finalizarLogin();
+                    alert("O navegador bloqueou o áudio. Clique no ícone de 🔇 após entrar para liberar.");
+                });
             });
-        });
+        }
 
         function finalizarLogin() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('radio-panel').classList.remove('hidden');
             document.getElementById('display-nick').textContent = meuNick;
+            
             atualizarBtnAudio();
             iniciarMonitoramento();
             atualizarPresenca(true);
@@ -110,8 +126,13 @@
                 audioTag.pause();
                 audioTag.currentTime = 0;
             } else {
-                // Tenta "acordar" o áudio de novo
-                audioTag.play().then(() => audioTag.pause());
+                // Tenta destravar com o clique manual silencioso
+                audioTag.volume = 0;
+                audioTag.play().then(() => {
+                    audioTag.pause();
+                    audioTag.currentTime = 0;
+                    audioTag.volume = 1;
+                }).catch(e => console.log(e));
             }
             atualizarBtnAudio();
         };
@@ -124,20 +145,62 @@
             }
         }
 
-        // DISPARAR PÂNICO
-        document.getElementById('main-panic-btn').addEventListener('click', async () => {
+        // DISPARAR PÂNICO (Aba Principal)
+        const btnPanic = document.getElementById('main-panic-btn');
+        if (btnPanic) {
+            btnPanic.addEventListener('click', dispararAlerta);
+        }
+
+        async function dispararAlerta() {
             if(!meuNick) return;
             const ref = doc(db, "panic_system", "status");
             await setDoc(ref, { ativo: true, por: meuNick, time: Date.now() });
-            setTimeout(() => updateDoc(ref, { ativo: false }), 12000);
-        });
+            
+            // Auto desliga o pânico em 15 segundos
+            setTimeout(() => updateDoc(ref, { ativo: false }), 15000);
+        }
 
+        // ABRIR POP-OUT
         window.fazerPopOut = () => {
             const width = 250, height = 300;
             const left = window.screen.width - width;
-            window.open(`${window.location.origin}${window.location.pathname}?popout=true&nick=${meuNick}`, 'ANBU_PANIC', `width=${width},height=${height},left=${left},top=0`);
+            window.open(`${window.location.origin}${window.location.pathname}?popout=true&nick=${meuNick}`, 'ANBU_PANIC', `width=${width},height=${height},left=${left},top=0,menubar=no,toolbar=no,status=no`);
         };
 
+        // RENDERIZAR E OUVIR A JANELINHA POP-OUT
+        function configurarModoPopOut() {
+            document.body.innerHTML = `
+                <div id="popout-body" class="flex flex-col items-center justify-center h-screen bg-slate-950 p-4 border-4 border-slate-800 transition-all duration-300">
+                    <p class="text-[10px] font-black mb-2 uppercase text-slate-500 italic">ANBU: ${meuNick}</p>
+                    <button id="popout-btn" class="w-full h-full rounded-2xl bg-slate-900 text-slate-700 font-black text-2xl border-2 border-slate-800 active:scale-95 transition-all shadow-inner uppercase tracking-tighter">
+                        🚨 PÂNICO
+                    </button>
+                    <p id="alert-name" class="hidden mt-2 text-white font-bold text-center text-[10px] uppercase italic animate-pulse"></p>
+                </div>
+            `;
+            
+            document.getElementById('popout-btn').addEventListener('click', dispararAlerta);
+
+            // Escuta o Firebase para piscar a janelinha
+            onSnapshot(doc(db, "panic_system", "status"), (snap) => {
+                const d = snap.data();
+                const body = document.getElementById('popout-body');
+                const btn = document.getElementById('popout-btn');
+                const name = document.getElementById('alert-name');
+                if(d && d.ativo) {
+                    body.classList.add('neon-panic');
+                    btn.classList.add('bg-red-600', 'text-white', 'border-white');
+                    name.classList.remove('hidden');
+                    name.textContent = `APOIO: ${d.por}`;
+                } else {
+                    body.classList.remove('neon-panic');
+                    btn.classList.remove('bg-red-600', 'text-white', 'border-white');
+                    name.classList.add('hidden');
+                }
+            });
+        }
+
+        // ESCUTAR O BANCO DE DADOS (ABA PRINCIPAL)
         function iniciarMonitoramento() {
             onSnapshot(doc(db, "panic_system", "status"), (snap) => {
                 const data = snap.data();
@@ -145,27 +208,31 @@
                 const card = document.getElementById('main-card');
                 const msg = document.getElementById('panic-msg');
                 
-                if(data?.ativo) {
+                if(data && data.ativo) {
+                    // Pânico Ativado!
                     card.classList.add('neon-panic');
                     btn.classList.add('text-white', 'border-white');
                     btn.innerHTML = `🚨 APOIAR: ${data.por}!`;
                     msg.classList.remove('hidden');
-                    msg.innerHTML = `ANBU <b>${data.por}</b> EM PERIGO!`;
+                    msg.innerHTML = `ANBU <b>${data.por}</b> SOLICITA AJUDA!`;
                     
                     if(audioHabilitado) {
                         audioTag.currentTime = 0;
-                        audioTag.play().catch(e => console.log("O navegador impediu o som. Clique no site!"));
+                        audioTag.play().catch(e => console.log("Áudio bloqueado:", e));
                     }
                 } else {
+                    // Pânico Desativado
                     card.classList.remove('neon-panic');
                     btn.classList.remove('text-white', 'border-white');
                     btn.innerHTML = "🚨 DISPARAR PÂNICO";
                     msg.classList.add('hidden');
+                    
                     audioTag.pause();
                     audioTag.currentTime = 0;
                 }
             });
 
+            // Monitorar lista online
             onSnapshot(collection(db, "presenca_radio"), (snap) => {
                 const lista = document.getElementById('online-list');
                 lista.innerHTML = "";
@@ -178,10 +245,14 @@
             });
         }
 
+        // ATUALIZAR STATUS ONLINE (HEARTBEAT)
         async function atualizarPresenca(status) {
             if(!meuNick) return;
             await setDoc(doc(db, "presenca_radio", meuNick), { id: meuNick, online: status, timestamp: Date.now() }, { merge: true });
         }
+
+        // LIMPAR PRESENÇA AO FECHAR A ABA
+        window.addEventListener('beforeunload', () => atualizarPresenca(false));
     </script>
 </body>
 </html>
