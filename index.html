@@ -3,67 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pânico ANBU - Realtime</title>
+    <title>Pânico ANBU - Comando</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: white; font-family: sans-serif; user-select: none; overflow: hidden; }
         
         .alerta-piscando {
-            animation: piscarForte 0.5s infinite alternate;
-            background-color: #dc2626 !important;
-            border: 4px solid #fca5a5 !important;
+            animation: piscarForte 0.6s infinite alternate;
+            background-color: #7f1d1d !important;
+            border: 2px solid #ef4444 !important;
+            box-shadow: 0 0 30px #ef4444 !important;
         }
 
         @keyframes piscarForte {
-            0% { box-shadow: 0 0 10px #ef4444; transform: scale(1); }
-            100% { box-shadow: 0 0 50px #ef4444, inset 0 0 20px #ef4444; transform: scale(1.02); }
+            0% { transform: scale(1); opacity: 0.9; }
+            100% { transform: scale(1.02); opacity: 1; }
         }
 
         .online-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 6px; box-shadow: 0 0 8px #22c55e; }
+        .btn-travado { opacity: 0.5; pointer-events: none; }
         
-        /* Botão travado enquanto processa */
-        .btn-travado { opacity: 0.5; pointer-events: none; cursor: not-allowed; }
+        /* Gradientes Bonitos */
+        .bg-glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); }
     </style>
 </head>
-<body class="flex items-center justify-center h-screen p-4">
+<body class="flex items-center justify-center h-screen p-4 bg-gradient-to-br from-slate-900 to-slate-950">
 
     <audio id="meuAudio" src="cebolinha-bobo-do-outro-lado.mp3" loop preload="auto"></audio>
 
-    <div id="tela-login" class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-gray-700 z-50">
-        <h1 class="text-3xl font-black text-red-500 mb-6">RÁDIO ANBU</h1>
-        <input id="input-nick" type="text" placeholder="SEU NICK..." class="w-full p-4 rounded-xl bg-gray-900 border border-gray-600 mb-4 text-center text-xl font-bold uppercase focus:border-red-500 outline-none">
-        <button onclick="iniciarSistema()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-black text-lg transition shadow-lg">CONECTAR RÁDIO</button>
-        <p class="text-gray-400 text-[10px] mt-4 uppercase">Conexão Realtime Estabelecida</p>
+    <div id="tela-login" class="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center border border-gray-700 z-50">
+        <div class="mb-6">
+            <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-300">RÁDIO ANBU</h1>
+            <p class="text-xs text-gray-400 mt-1 uppercase tracking-widest">Central de Operações</p>
+        </div>
+        <input id="input-nick" type="text" placeholder="SEU NICK..." class="w-full p-4 rounded-xl bg-gray-900 border border-gray-600 mb-6 text-center text-xl font-bold uppercase focus:border-red-500 outline-none shadow-inner text-white">
+        <button onclick="iniciarSistema()" class="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 py-4 rounded-xl font-black text-lg transition-all shadow-lg shadow-red-900/50">CONECTAR</button>
     </div>
 
     <div id="tela-radio" class="hidden w-full max-w-md space-y-4">
-        <div class="flex justify-between items-center bg-gray-800 p-4 rounded-xl border border-gray-700">
+        
+        <div class="flex justify-between items-center bg-glass p-5 rounded-2xl border border-gray-700/50 shadow-lg">
             <div>
-                <span class="text-[10px] text-gray-400 uppercase tracking-widest block">Operador:</span>
+                <span class="text-[10px] text-gray-400 uppercase tracking-widest block">Logado como</span>
                 <span id="nick-display" class="font-black text-xl text-white uppercase"></span>
             </div>
             <div class="flex gap-2">
-                <button onclick="abrirPopout()" class="bg-gray-700 px-4 py-3 rounded-lg font-bold hover:bg-gray-600 text-sm" title="Modo Janela Pequena">🔲</button>
-                <button id="btn-som" onclick="alternarSom()" class="bg-green-600 px-4 py-3 rounded-lg font-bold hover:bg-green-500 text-sm transition-colors shadow-[0_0_10px_#16a34a]">🔊 SOM ON</button>
+                <button onclick="abrirPopout()" class="bg-gray-700/80 px-4 py-3 rounded-xl font-bold hover:bg-gray-600 text-sm border border-gray-600 transition" title="Modo Janela">🔲</button>
+                <button id="btn-som" onclick="alternarSom()" class="bg-green-600/20 text-green-400 border border-green-500/50 px-4 py-3 rounded-xl font-bold hover:bg-green-600/40 text-sm transition-all shadow-[0_0_15px_rgba(34,197,94,0.2)]">🔊 SOM ON</button>
             </div>
         </div>
 
-        <button id="btn-panico" onclick="enviarAlerta()" class="w-full bg-gray-900 border-2 border-gray-700 h-72 rounded-3xl flex flex-col items-center justify-center transition-all duration-200 active:scale-95 shadow-2xl relative">
-            <span class="text-6xl mb-4">🚨</span>
-            <span id="texto-panico" class="font-black text-3xl text-gray-500 uppercase tracking-widest text-center px-4">PÂNICO</span>
-            <span id="texto-quem" class="hidden mt-4 font-black text-white text-2xl bg-black px-6 py-2 rounded-xl"></span>
-        </button>
+        <div id="area-panico" class="w-full bg-gray-900 border-2 border-gray-800 h-72 rounded-[2rem] flex flex-col items-center justify-center transition-all duration-300 shadow-2xl relative p-4">
+            
+            <button id="btn-panico" onclick="enviarAlerta()" class="w-full h-full flex flex-col items-center justify-center rounded-[1.5rem] transition-all active:scale-95 outline-none">
+                <span class="text-6xl mb-4 drop-shadow-lg">🚨</span>
+                <span id="texto-panico" class="font-black text-3xl text-gray-500 uppercase tracking-widest">PÂNICO</span>
+                <span id="texto-quem" class="hidden mt-4 font-black text-white text-xl bg-black/50 backdrop-blur px-6 py-2 rounded-xl border border-white/10"></span>
+            </button>
 
-        <div class="bg-gray-800 border border-gray-700 rounded-xl p-4">
-            <div id="lista-online" class="flex flex-wrap gap-2 text-xs"></div>
+            <div id="area-resposta" class="hidden w-full h-full flex flex-col items-center justify-center">
+                <span class="text-4xl mb-2 drop-shadow-lg">🚨</span>
+                <span class="font-black text-xl text-white uppercase tracking-widest mb-1">APOIO SOLICITADO</span>
+                <span id="texto-quem-pediu" class="font-bold text-red-300 text-lg bg-black/40 px-4 py-1 rounded-lg mb-6"></span>
+                
+                <div class="flex gap-3 w-full px-4">
+                    <button onclick="responderChamado('indo')" class="flex-1 bg-green-600 hover:bg-green-500 py-4 rounded-xl font-black text-white text-lg border-2 border-green-400 transition-all active:scale-95 shadow-[0_0_15px_rgba(34,197,94,0.4)]">
+                        ✅ VOU IR
+                    </button>
+                    <button onclick="responderChamado('nao_vai')" class="flex-1 bg-red-800 hover:bg-red-700 py-4 rounded-xl font-black text-white text-lg border-2 border-red-500 transition-all active:scale-95">
+                        ❌ NÃO POSSO
+                    </button>
+                </div>
+            </div>
+
+            <div id="area-respondido" class="hidden w-full h-full flex flex-col items-center justify-center">
+                <span id="icone-respondido" class="text-5xl mb-4">✅</span>
+                <span id="texto-respondido" class="font-black text-xl text-white uppercase tracking-widest text-center">STATUS ENVIADO</span>
+                <span class="text-xs text-gray-400 mt-4 uppercase">Aguardando cancelamento do líder...</span>
+            </div>
+
+        </div>
+
+        <div class="bg-glass border border-gray-700/50 rounded-2xl p-5 shadow-lg">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Esquadrão Ativo</h3>
+                <span id="contador-online" class="text-[10px] font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded">0 ONLINE</span>
+            </div>
+            <div id="lista-online" class="flex flex-col gap-2"></div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, onDisconnect, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-        // SUAS CHAVES DO REALTIME DATABASE
+        // SUAS CHAVES CORRETAS DO REALTIME DB
         const firebaseConfig = {
             apiKey: "AIzaSyAAyP4T4uoKtn4R170k61CenZJNwAoK9L8",
             authDomain: "panico-7c388.firebaseapp.com",
@@ -79,11 +113,14 @@
 
         let meuNick = "";
         let somLigado = true;
-        let estadoPanico = false; 
-        let emProcessamento = false; // Trava anti-spam
+        let estadoPanico = false;
+        let emProcessamento = false; 
+        
+        let usuariosOnline = {};
+        let respostasGlobais = {}; 
+
         const audioPlayer = document.getElementById("meuAudio");
 
-        // VERIFICA SE É O POPOUT
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('popout')) {
             meuNick = urlParams.get('nick');
@@ -91,124 +128,157 @@
             iniciarModoPopout();
         }
 
-        // 1. LOGIN & LIBERAÇÃO DO ÁUDIO
+        // 1. LOGIN
         window.iniciarSistema = () => {
             const input = document.getElementById("input-nick").value.trim().toUpperCase();
             if(!input) return alert("Identifique-se!");
-            
             meuNick = input;
 
+            // Destrava Áudio
             audioPlayer.muted = true;
             audioPlayer.play().then(() => {
                 audioPlayer.pause();
                 audioPlayer.currentTime = 0;
                 audioPlayer.muted = false; 
                 
-                document.getElementById("tela-login").classList.add("hidden");
-                document.getElementById("tela-radio").classList.remove("hidden");
-                document.getElementById("nick-display").innerText = meuNick;
-                
-                iniciarPresencaAutomatica();
-                escutarPânico();
+                irParaPainel();
             }).catch(e => {
-                alert("Erro ao ativar áudio. Tente clicar no botão de som após entrar.");
-                document.getElementById("tela-login").classList.add("hidden");
-                document.getElementById("tela-radio").classList.remove("hidden");
-                document.getElementById("nick-display").innerText = meuNick;
-                iniciarPresencaAutomatica();
-                escutarPânico();
+                irParaPainel();
             });
         };
 
-        // 2. CONTROLE DO SOM
+        function irParaPainel() {
+            document.getElementById("tela-login").classList.add("hidden");
+            document.getElementById("tela-radio").classList.remove("hidden");
+            document.getElementById("nick-display").innerText = meuNick;
+            
+            iniciarPresencaAutomatica();
+            escutarPânico();
+        }
+
+        // 2. SOM
         window.alternarSom = () => {
             somLigado = !somLigado;
             const btn = document.getElementById("btn-som");
-            
             if (somLigado) {
                 btn.innerText = "🔊 SOM ON";
-                btn.className = "bg-green-600 px-4 py-3 rounded-lg font-bold hover:bg-green-500 text-sm transition-colors shadow-[0_0_10px_#16a34a]";
-                audioPlayer.muted = true;
-                audioPlayer.play().then(() => { audioPlayer.pause(); audioPlayer.muted = false; }).catch(e=>{});
+                btn.className = "bg-green-600/20 text-green-400 border border-green-500/50 px-4 py-3 rounded-xl font-bold hover:bg-green-600/40 text-sm transition-all shadow-[0_0_15px_rgba(34,197,94,0.2)]";
+                audioPlayer.muted = true; audioPlayer.play().then(()=>{audioPlayer.pause(); audioPlayer.muted = false;}).catch(()=>{});
             } else {
                 btn.innerText = "🔇 SOM OFF";
-                btn.className = "bg-gray-700 px-4 py-3 rounded-lg font-bold hover:bg-gray-600 text-sm transition-colors";
+                btn.className = "bg-gray-800 text-gray-500 border border-gray-700 px-4 py-3 rounded-xl font-bold hover:bg-gray-700 text-sm transition-all";
                 audioPlayer.pause();
                 audioPlayer.currentTime = 0;
             }
         };
 
-        // 3. ENVIAR OU CANCELAR PÂNICO (COM TRAVA ANTI-SPAM)
+        // 3. ENVIAR PÂNICO E CANCELAR
         window.enviarAlerta = () => {
             if(!meuNick || emProcessamento) return;
+            emProcessamento = true;
             
-            emProcessamento = true; // Trava o botão
-            document.getElementById("btn-panico").classList.add("btn-travado");
-
             const panicoRef = ref(db, 'alerta_global');
-            
             if (estadoPanico) {
-                set(panicoRef, { ativo: false, quem: "" });
+                set(panicoRef, { ativo: false, quem: "", respostas: null }); // Limpa tudo
             } else {
-                set(panicoRef, { ativo: true, quem: meuNick, timestamp: Date.now() });
+                set(panicoRef, { ativo: true, quem: meuNick, timestamp: Date.now(), respostas: {} });
             }
 
-            // Destrava o botão depois de 1.5 segundos (tempo de sobra pro Firebase sincronizar)
-            setTimeout(() => {
-                emProcessamento = false;
-                const btnAtual = document.getElementById("btn-panico");
-                if (btnAtual) btnAtual.classList.remove("btn-travado");
-            }, 1500);
+            setTimeout(() => { emProcessamento = false; }, 1000);
         };
 
-        // 4. OUVIR O PÂNICO
+        // 4. RESPONDER AO CHAMADO
+        window.responderChamado = (resposta) => {
+            // Atualiza direto no banco de dados na chave "respostas"
+            const respostaRef = ref(db, `alerta_global/respostas`);
+            update(respostaRef, { [meuNick]: resposta });
+        };
+
+        // 5. ESCUTAR PÂNICO E ATUALIZAR INTERFACE
         function escutarPânico() {
-            const panicoRef = ref(db, 'alerta_global');
-            onValue(panicoRef, (snapshot) => {
+            onValue(ref(db, 'alerta_global'), (snapshot) => {
                 const dados = snapshot.val();
-                const botao = document.getElementById("btn-panico");
+                
+                const container = document.getElementById("area-panico");
+                const btnPanico = document.getElementById("btn-panico");
+                const areaResposta = document.getElementById("area-resposta");
+                const areaRespondido = document.getElementById("area-respondido");
                 const txtPanico = document.getElementById("texto-panico");
                 const txtQuem = document.getElementById("texto-quem");
+                const txtQuemPediu = document.getElementById("texto-quem-pediu");
 
                 if (dados && dados.ativo === true) {
-                    
-                    // Só dá o play se o áudio NÃO estiver tocando já (evita gaguejar)
-                    if (!estadoPanico && somLigado) {
-                        audioPlayer.currentTime = 0;
-                        audioPlayer.play().catch(e => console.log("Áudio bloqueado:", e));
-                    }
-
                     estadoPanico = true;
-                    botao.classList.add("alerta-piscando");
-                    
+                    respostasGlobais = dados.respostas || {};
+                    renderizarListaOnline(); // Atualiza a lista com os Vistos/Xis
+
+                    container.classList.add("alerta-piscando");
+
+                    // SE EU FUI QUEM PEDIU
                     if (dados.quem === meuNick) {
+                        btnPanico.classList.remove("hidden");
+                        areaResposta.classList.add("hidden");
+                        areaRespondido.classList.add("hidden");
+                        
                         txtPanico.innerText = "CANCELAR ALARME";
-                    } else {
-                        txtPanico.innerText = "APOIO SOLICITADO!";
+                        txtPanico.classList.replace("text-gray-500", "text-white");
+                        txtQuem.innerText = `Você pediu ajuda!`;
+                        txtQuem.classList.remove("hidden");
+                        audioPlayer.pause(); // Quem pede não ouve som
+                    } 
+                    // SE EU ESTOU RECEBENDO O PEDIDO
+                    else {
+                        const minhaResposta = respostasGlobais[meuNick];
+
+                        // Se eu ainda NÃO respondi
+                        if (!minhaResposta) {
+                            btnPanico.classList.add("hidden");
+                            areaRespondido.classList.add("hidden");
+                            areaResposta.classList.remove("hidden");
+                            txtQuemPediu.innerText = `POR: ${dados.quem}`;
+
+                            // TOCA O SOM AQUI (Pois não respondi ainda)
+                            if (somLigado) audioPlayer.play().catch(e=>{});
+                        } 
+                        // Se eu JÁ respondi
+                        else {
+                            btnPanico.classList.add("hidden");
+                            areaResposta.classList.add("hidden");
+                            areaRespondido.classList.remove("hidden");
+                            
+                            document.getElementById("icone-respondido").innerText = minhaResposta === 'indo' ? '🏃‍♂️' : '❌';
+                            document.getElementById("texto-respondido").innerText = minhaResposta === 'indo' ? 'A CAMINHO!' : 'AÇÃO ABORTADA';
+                            document.getElementById("texto-respondido").className = minhaResposta === 'indo' ? 'font-black text-xl text-green-400 uppercase tracking-widest text-center mt-2' : 'font-black text-xl text-red-400 uppercase tracking-widest text-center mt-2';
+
+                            // PARA O SOM ASSIM QUE RESPONDE!
+                            audioPlayer.pause();
+                            audioPlayer.currentTime = 0;
+                        }
                     }
-
-                    txtPanico.classList.replace("text-gray-500", "text-white");
-                    txtQuem.innerText = dados.quem;
-                    txtQuem.classList.remove("hidden");
-
                 } else {
-                    
-                    // Só pausa se o áudio estivesse tocando
-                    if (estadoPanico) {
-                        audioPlayer.pause();
-                        audioPlayer.currentTime = 0;
-                    }
-
+                    // PÂNICO DESATIVADO
                     estadoPanico = false;
-                    botao.classList.remove("alerta-piscando");
+                    respostasGlobais = {};
+                    renderizarListaOnline();
+
+                    container.classList.remove("alerta-piscando");
+                    
+                    // Reseta pra tela padrão
+                    btnPanico.classList.remove("hidden");
+                    areaResposta.classList.add("hidden");
+                    areaRespondido.classList.add("hidden");
+
                     txtPanico.innerText = "PÂNICO";
                     txtPanico.classList.replace("text-white", "text-gray-500");
                     txtQuem.classList.add("hidden");
+
+                    audioPlayer.pause();
+                    audioPlayer.currentTime = 0;
                 }
             });
         }
 
-        // 5. PRESENÇA
+        // 6. PRESENÇA E LISTA ONLINE
         function iniciarPresencaAutomatica() {
             const connectedRef = ref(db, '.info/connected');
             const meuUserRef = ref(db, 'online/' + meuNick);
@@ -220,85 +290,141 @@
                 }
             });
 
-            const listaOnlineRef = ref(db, 'online');
-            onValue(listaOnlineRef, (snapshot) => {
-                const listaDiv = document.getElementById("lista-online");
-                listaDiv.innerHTML = "";
-                const usuarios = snapshot.val();
-
-                if (usuarios) {
-                    Object.keys(usuarios).forEach(nick => {
-                        listaDiv.innerHTML += `<div class="bg-gray-900 px-3 py-1.5 rounded border border-gray-600 flex items-center shadow"><span class="online-dot"></span>${nick}</div>`;
-                    });
-                } else {
-                    listaDiv.innerHTML = '<span class="text-gray-500 italic">Nenhum ninja na escuta.</span>';
-                }
+            onValue(ref(db, 'online'), (snapshot) => {
+                usuariosOnline = snapshot.val() || {};
+                renderizarListaOnline();
             });
         }
 
-        // 6. POPOUT OVERLAY
+        function renderizarListaOnline() {
+            const listaDiv = document.getElementById("lista-online");
+            const contador = document.getElementById("contador-online");
+            listaDiv.innerHTML = "";
+            
+            const nicks = Object.keys(usuariosOnline);
+            contador.innerText = `${nicks.length} ONLINE`;
+
+            if (nicks.length > 0) {
+                nicks.forEach(nick => {
+                    // Verifica se tem resposta neste nick
+                    let iconeStatus = "";
+                    if (estadoPanico) {
+                        const resp = respostasGlobais[nick];
+                        if (resp === 'indo') iconeStatus = '<span class="ml-auto text-green-400 font-bold text-sm bg-green-900/50 px-2 rounded">✅ VAI</span>';
+                        else if (resp === 'nao_vai') iconeStatus = '<span class="ml-auto text-red-400 font-bold text-sm bg-red-900/50 px-2 rounded">❌ NÃO</span>';
+                        else if (nick !== meuNick) iconeStatus = '<span class="ml-auto text-gray-500 text-xs italic">Ouvindo...</span>';
+                    }
+
+                    listaDiv.innerHTML += `
+                        <div class="bg-gray-900/80 p-2 rounded-lg border border-gray-700 flex items-center shadow-inner">
+                            <span class="online-dot"></span>
+                            <span class="font-bold text-gray-200 tracking-wider">${nick}</span>
+                            ${iconeStatus}
+                        </div>
+                    `;
+                });
+            } else {
+                listaDiv.innerHTML = '<span class="text-gray-500 italic text-center w-full py-2">Sem comunicação...</span>';
+            }
+        }
+
+        // 7. MODO OVERLAY (POPOUT) COM FUNCIONALIDADES
         window.abrirPopout = () => {
-            const w = 250, h = 300;
+            const w = 320, h = 400;
             const l = window.screen.width - w;
             window.open(`${window.location.origin}${window.location.pathname}?popout=true&nick=${meuNick}`, 'ANBU_OVERLAY', `width=${w},height=${h},left=${l},top=0,menubar=no,toolbar=no,status=no`);
         };
 
         function iniciarModoPopout() {
             document.body.innerHTML = `
-                <div class="flex flex-col h-screen bg-gray-900 p-3 border-4 border-gray-800 transition-colors duration-200" id="bg-popout">
-                    <p class="text-center text-[10px] text-gray-500 font-black mb-2 uppercase">Overlay - ${meuNick}</p>
-                    <button id="btn-panico-pop" onclick="enviarAlerta()" class="flex-grow bg-gray-800 border-2 border-gray-700 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-inner px-2">
-                        <span class="text-4xl mb-2">🚨</span>
-                        <span id="txt-pop" class="font-black text-xl text-gray-500 text-center">PÂNICO</span>
-                        <span id="txt-quem-pop" class="hidden mt-2 font-bold text-white bg-black px-2 py-1 rounded text-sm text-center"></span>
-                    </button>
+                <div class="flex flex-col h-screen bg-slate-950 p-3 border-4 border-slate-800 transition-colors duration-200 relative overflow-hidden" id="bg-popout">
+                    
+                    <div class="bg-blue-600 text-white text-[10px] font-black text-center py-1 absolute top-0 left-0 w-full uppercase tracking-widest shadow-md">
+                        MODO OVERLAY ATIVO
+                    </div>
+
+                    <p class="text-center text-xs text-gray-500 font-black mt-6 mb-2 uppercase tracking-widest border-b border-gray-800 pb-1">Operador: ${meuNick}</p>
+                    
+                    <div id="area-panico-pop" class="flex-grow flex flex-col justify-center w-full">
+                        
+                        <button id="btn-panico-pop" onclick="enviarAlerta()" class="w-full h-full bg-gray-900 border-2 border-gray-700 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-inner">
+                            <span class="text-5xl mb-2">🚨</span>
+                            <span id="txt-pop" class="font-black text-2xl text-gray-500 tracking-widest">PÂNICO</span>
+                        </button>
+
+                        <div id="area-resposta-pop" class="hidden w-full h-full flex flex-col items-center justify-center space-y-3">
+                            <span class="text-3xl">🚨</span>
+                            <p id="txt-quem-pop" class="text-center text-white font-bold text-sm bg-red-900/50 px-2 py-1 rounded w-full"></p>
+                            <button onclick="responderChamado('indo')" class="w-full bg-green-600 py-3 rounded-xl font-black text-white text-lg active:scale-95 border-2 border-green-500 shadow-lg">✅ VOU IR</button>
+                            <button onclick="responderChamado('nao_vai')" class="w-full bg-red-800 py-3 rounded-xl font-black text-white text-lg active:scale-95 border-2 border-red-500 shadow-lg">❌ NÃO VOU</button>
+                        </div>
+
+                        <div id="area-respondido-pop" class="hidden w-full h-full flex flex-col items-center justify-center">
+                            <span id="icone-respondido-pop" class="text-5xl mb-2">✅</span>
+                            <span id="texto-respondido-pop" class="font-black text-lg text-white uppercase text-center mt-2">ENVIADO</span>
+                        </div>
+
+                    </div>
                 </div>
             `;
 
+            // Refaz as funções no Popout para não dar erro
             window.enviarAlerta = () => {
                 if(emProcessamento) return;
                 emProcessamento = true;
-                document.getElementById("btn-panico-pop").classList.add("btn-travado");
-
                 const refPanico = ref(db, 'alerta_global');
-                if (estadoPanico) {
-                    set(refPanico, { ativo: false, quem: "" });
-                } else {
-                    set(refPanico, { ativo: true, quem: meuNick, timestamp: Date.now() });
-                }
+                if (estadoPanico) set(refPanico, { ativo: false, quem: "", respostas: null });
+                else set(refPanico, { ativo: true, quem: meuNick, timestamp: Date.now(), respostas: {} });
+                setTimeout(() => emProcessamento = false, 1000);
+            };
 
-                setTimeout(() => {
-                    emProcessamento = false;
-                    const btnAtual = document.getElementById("btn-panico-pop");
-                    if (btnAtual) btnAtual.classList.remove("btn-travado");
-                }, 1500);
+            window.responderChamado = (resposta) => {
+                update(ref(db, `alerta_global/respostas`), { [meuNick]: resposta });
             };
 
             onValue(ref(db, 'alerta_global'), (snapshot) => {
                 const dados = snapshot.val();
                 const bg = document.getElementById("bg-popout");
-                const txt = document.getElementById("txt-pop");
-                const txtQuem = document.getElementById("txt-quem-pop");
-
+                
+                const btnPanico = document.getElementById("btn-panico-pop");
+                const areaResposta = document.getElementById("area-resposta-pop");
+                const areaRespondido = document.getElementById("area-respondido-pop");
+                
                 if (dados && dados.ativo === true) {
                     estadoPanico = true;
                     bg.classList.add("alerta-piscando", "border-red-500");
                     
                     if (dados.quem === meuNick) {
-                        txt.innerText = "CANCELAR";
+                        btnPanico.classList.remove("hidden");
+                        areaResposta.classList.add("hidden");
+                        areaRespondido.classList.add("hidden");
+                        document.getElementById("txt-pop").innerText = "CANCELAR";
+                        document.getElementById("txt-pop").classList.replace("text-gray-500", "text-white");
                     } else {
-                        txt.innerText = "ALERTA!";
+                        const minhaResp = (dados.respostas || {})[meuNick];
+                        if (!minhaResp) {
+                            btnPanico.classList.add("hidden");
+                            areaRespondido.classList.add("hidden");
+                            areaResposta.classList.remove("hidden");
+                            document.getElementById("txt-quem-pop").innerText = `APOIO P/ ${dados.quem}`;
+                        } else {
+                            btnPanico.classList.add("hidden");
+                            areaResposta.classList.add("hidden");
+                            areaRespondido.classList.remove("hidden");
+                            document.getElementById("icone-respondido-pop").innerText = minhaResp === 'indo' ? '🏃‍♂️' : '❌';
+                            document.getElementById("texto-respondido-pop").innerText = minhaResp === 'indo' ? 'A CAMINHO' : 'ABORTADO';
+                            document.getElementById("texto-respondido-pop").className = minhaResp === 'indo' ? 'font-black text-xl text-green-400 mt-2' : 'font-black text-xl text-red-400 mt-2';
+                        }
                     }
-
-                    txt.classList.replace("text-gray-500", "text-white");
-                    txtQuem.innerText = dados.quem;
-                    txtQuem.classList.remove("hidden");
                 } else {
                     estadoPanico = false;
                     bg.classList.remove("alerta-piscando", "border-red-500");
-                    txt.innerText = "PÂNICO";
-                    txt.classList.replace("text-white", "text-gray-500");
-                    txtQuem.classList.add("hidden");
+                    
+                    btnPanico.classList.remove("hidden");
+                    areaResposta.classList.add("hidden");
+                    areaRespondido.classList.add("hidden");
+                    document.getElementById("txt-pop").innerText = "PÂNICO";
+                    document.getElementById("txt-pop").classList.replace("text-white", "text-gray-500");
                 }
             });
         }
