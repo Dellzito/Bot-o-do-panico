@@ -22,10 +22,13 @@
 </head>
 <body class="flex items-center justify-center h-screen p-4">
 
+    <audio id="meuAudio" src="cebolinha-bobo-do-outro-lado.mp3" loop preload="auto"></audio>
+
     <div id="tela-login" class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-gray-700 z-50">
         <h1 class="text-3xl font-black text-red-500 mb-6">RÁDIO ANBU</h1>
         <input id="input-nick" type="text" placeholder="SEU NICK..." class="w-full p-4 rounded-xl bg-gray-900 border border-gray-600 mb-4 text-center text-xl font-bold uppercase focus:border-red-500 outline-none">
         <button onclick="iniciarSistema()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-black text-lg transition shadow-lg">CONECTAR</button>
+        <p class="text-gray-400 text-[10px] mt-4">O som será liberado ao conectar.</p>
     </div>
 
     <div id="tela-radio" class="hidden w-full max-w-md space-y-4">
@@ -36,7 +39,7 @@
             </div>
             <div class="flex gap-2">
                 <button onclick="abrirPopout()" class="bg-gray-700 px-4 py-3 rounded-lg font-bold hover:bg-gray-600 text-sm" title="Modo Overlay">🔲</button>
-                <button id="btn-som" onclick="alternarSom()" class="bg-green-600 px-4 py-3 rounded-lg font-bold hover:bg-green-500 text-sm transition-colors shadow-[0_0_10px_#16a34a]">🔊 SOM LIGADO</button>
+                <button id="btn-som" onclick="alternarSom()" class="bg-green-600 px-4 py-3 rounded-lg font-bold hover:bg-green-500 text-sm transition-colors shadow-[0_0_10px_#16a34a]">🔊 SOM ON</button>
             </div>
         </div>
 
@@ -64,13 +67,8 @@
         const db = getFirestore(app);
 
         let meuNick = "";
-        let somLigado = true; // Já começa liberado após o login
-        let estadoPanico = false;
-
-        // O SEGREDO DO ÁUDIO: Link via jsDelivr (Não trava) e criado via JS
-        const linkAudio = "https://cdn.jsdelivr.net/gh/Dellzito/Bot-o-do-panico@main/cebolinha-bobo-do-outro-lado.mp3";
-        const alarme = new Audio(linkAudio);
-        alarme.loop = true;
+        let somLigado = true;
+        const audioPlayer = document.getElementById("meuAudio");
 
         // VERIFICA SE É O POPOUT
         const urlParams = new URLSearchParams(window.location.search);
@@ -80,37 +78,45 @@
             iniciarModoPopout();
         }
 
-        // 1. ENTRAR NO SISTEMA
+        // 1. ENTRAR NO SISTEMA E DESTRAVAR O NAVEGADOR
         window.iniciarSistema = () => {
             const input = document.getElementById("input-nick").value.trim().toUpperCase();
             if(!input) return alert("Identifique-se!");
             
             meuNick = input;
-            document.getElementById("tela-login").classList.add("hidden");
-            document.getElementById("tela-radio").classList.remove("hidden");
-            document.getElementById("nick-display").innerText = meuNick;
 
-            // O simples fato de chamar .load() num clique do usuário desbloqueia o som no Chrome
-            alarme.load(); 
-
-            escutarAlertaGlobal();
+            // O TRUQUE DE MESTRE: Toca mutado para o Chrome liberar, depois pausa e desmuta.
+            audioPlayer.muted = true;
+            audioPlayer.play().then(() => {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+                audioPlayer.muted = false; // Áudio 100% destravado e pronto pro uso!
+                
+                // Vai pra tela
+                document.getElementById("tela-login").classList.add("hidden");
+                document.getElementById("tela-radio").classList.remove("hidden");
+                document.getElementById("nick-display").innerText = meuNick;
+                
+                escutarAlertaGlobal();
+            }).catch(e => {
+                console.error("Erro ao liberar áudio:", e);
+                alert("O navegador bloqueou o áudio. Tente clicar em 'Conectar' novamente.");
+            });
         };
 
-        // 2. CONTROLE DE SOM (Botão do topo)
+        // 2. CONTROLE DE SOM MANUAL
         window.alternarSom = () => {
             somLigado = !somLigado;
             const btn = document.getElementById("btn-som");
             
             if (somLigado) {
-                btn.innerText = "🔊 SOM LIGADO";
+                btn.innerText = "🔊 SOM ON";
                 btn.className = "bg-green-600 px-4 py-3 rounded-lg font-bold hover:bg-green-500 text-sm transition-colors shadow-[0_0_10px_#16a34a]";
-                // Se ligou o som e o pânico estiver rolando, toca na hora
-                if (estadoPanico) alarme.play().catch(e => console.log(e));
             } else {
-                btn.innerText = "🔇 SOM DESLIGADO";
+                btn.innerText = "🔇 SOM OFF";
                 btn.className = "bg-gray-700 px-4 py-3 rounded-lg font-bold hover:bg-gray-600 text-sm transition-colors";
-                alarme.pause();
-                alarme.currentTime = 0;
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
             }
         };
 
@@ -120,11 +126,10 @@
             const ref = doc(db, "sistema_alerta", "status");
             await setDoc(ref, { alerta: true, quem: meuNick, timestamp: Date.now() });
             
-            // Desliga em 12 segundos
-            setTimeout(() => setDoc(ref, { alerta: false }), 12000);
+            setTimeout(() => setDoc(ref, { alerta: false }), 12000); // 12 seg e desliga
         };
 
-        // 4. OUVIR O SINAL DE TODOS (Onde o som realmente toca)
+        // 4. OUVIR O SINAL DE TODOS
         function escutarAlertaGlobal() {
             onSnapshot(doc(db, "sistema_alerta", "status"), (documento) => {
                 const dados = documento.data();
@@ -133,7 +138,6 @@
                 const txtQuem = document.getElementById("texto-quem");
 
                 if (dados && dados.alerta === true) {
-                    estadoPanico = true;
                     
                     // Visual
                     botao.classList.add("alerta-piscando");
@@ -142,13 +146,11 @@
                     txtQuem.innerText = dados.quem;
                     txtQuem.classList.remove("hidden");
 
-                    // Tocar Áudio (sem hacks, play direto)
+                    // Tocar Áudio
                     if (somLigado) {
-                        alarme.play().catch(e => console.error("Erro ao tocar alarme:", e));
+                        audioPlayer.play().catch(e => console.error("Falha ao tocar som:", e));
                     }
                 } else {
-                    estadoPanico = false;
-                    
                     // Visual
                     botao.classList.remove("alerta-piscando");
                     txtPanico.innerText = "PÂNICO";
@@ -156,8 +158,8 @@
                     txtQuem.classList.add("hidden");
 
                     // Parar Áudio
-                    alarme.pause();
-                    alarme.currentTime = 0;
+                    audioPlayer.pause();
+                    audioPlayer.currentTime = 0;
                 }
             });
         }
@@ -190,7 +192,6 @@
             onSnapshot(doc(db, "sistema_alerta", "status"), (documento) => {
                 const dados = documento.data();
                 const bg = document.getElementById("bg-popout");
-                const btn = document.getElementById("btn-panico-pop");
                 const txt = document.getElementById("txt-pop");
                 const txtQuem = document.getElementById("txt-quem-pop");
 
