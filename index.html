@@ -6,7 +6,8 @@
     <title>Pânico ANBU - Comando Tático</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: white; font-family: sans-serif; user-select: none; overflow: hidden; }
+        /* Removido o 'overflow: hidden' para permitir o scroll na página */
+        body { background-color: #0f172a; color: white; font-family: sans-serif; user-select: none; }
         
         .alerta-piscando {
             animation: piscarForte 0.6s infinite alternate;
@@ -27,14 +28,23 @@
         .barra-preenchimento { height: 100%; background: #ef4444; width: 100%; transition: width 10s linear; }
         .animar-barra { width: 0% !important; }
         
+        /* Slider de Volume Personalizado */
         input[type=range]::-webkit-slider-thumb { background: #22c55e; }
     </style>
 </head>
-<body class="flex items-center justify-center h-screen p-4 bg-gradient-to-br from-slate-900 to-slate-950">
+<body class="flex flex-col items-center justify-center min-h-screen py-8 p-4 bg-gradient-to-br from-slate-900 to-slate-950">
 
     <audio id="meuAudio" preload="auto" loop></audio>
 
-    <div id="tela-login" class="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center border border-gray-700 z-50">
+    <div id="overlay-retomar" class="hidden fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-4">
+        <h2 class="text-3xl font-black text-white mb-2 text-center uppercase tracking-widest">Sistema Atualizado</h2>
+        <p class="text-gray-400 mb-8 text-center text-sm">O líder atualizou o rádio. Clique abaixo para reconectar.</p>
+        <button onclick="retomarConexao()" class="bg-red-600 hover:bg-red-500 px-10 py-5 rounded-2xl font-black text-xl text-white shadow-lg shadow-red-900/50 transition-all active:scale-95">
+            ▶️ RETOMAR RÁDIO
+        </button>
+    </div>
+
+    <div id="tela-login" class="bg-gray-800 p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center border border-gray-700 z-50 my-auto">
         <div class="mb-6">
             <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-red-300">RÁDIO ANBU</h1>
             <p class="text-xs text-gray-400 mt-1 uppercase tracking-widest">Comando Tático</p>
@@ -43,7 +53,7 @@
         <button onclick="iniciarSistema()" class="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 py-4 rounded-xl font-black text-lg transition-all shadow-lg shadow-red-900/50">CONECTAR</button>
     </div>
 
-    <div id="tela-radio" class="hidden w-full max-w-md space-y-4">
+    <div id="tela-radio" class="hidden w-full max-w-md space-y-4 my-auto">
         
         <div class="flex flex-col sm:flex-row justify-between items-center bg-glass p-4 rounded-2xl border border-gray-700/50 shadow-lg gap-4">
             <div class="w-full sm:w-auto text-center sm:text-left">
@@ -53,7 +63,6 @@
             
             <div class="flex flex-wrap justify-center sm:justify-end gap-2 w-full sm:w-auto">
                 <button onclick="forcarAtualizacaoGlobal()" class="bg-red-800/80 px-3 py-2 rounded-xl font-bold hover:bg-red-700 text-xs border border-red-600 transition flex items-center gap-1 text-white shadow-lg" title="Atualizar a tela de todos">🔄 F5 GERAL</button>
-                
                 <button onclick="abrirConfiguracoes()" class="bg-gray-700/80 px-3 py-2 rounded-xl font-bold hover:bg-gray-600 text-xs border border-gray-600 transition flex items-center gap-1" title="Configurar Sons">⚙️ SONS</button>
                 <button onclick="abrirPopout()" class="bg-gray-700/80 px-3 py-2 rounded-xl font-bold hover:bg-gray-600 text-xs border border-gray-600 transition flex items-center gap-1" title="Abrir Janela Separada">🔲 OVERLAY</button>
                 
@@ -101,7 +110,7 @@
     </div>
 
     <div id="modal-config" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 p-4">
-        <div class="bg-gray-800 border border-gray-700 p-6 rounded-3xl w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="bg-gray-800 border border-gray-700 p-6 rounded-3xl w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto my-auto">
             <h2 class="text-2xl font-black text-white mb-2">Sons do Esquadrão</h2>
             <p class="text-xs text-gray-400 mb-4">Gerencie a lista e escolha o seu áudio pessoal de resgate.</p>
             
@@ -126,6 +135,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, onDisconnect, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
+        // COLOQUE SUAS CHAVES AQUI
         const firebaseConfig = {
             apiKey: "AIzaSyAAyP4T4uoKtn4R170k61CenZJNwAoK9L8",
             authDomain: "panico-7c388.firebaseapp.com",
@@ -139,7 +149,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Marca a hora que o site abriu para não recarregar atoa
         const HORA_INICIO_SISTEMA = Date.now();
 
         let meuNick = "";
@@ -156,27 +165,41 @@
 
         const audioPlayer = document.getElementById("meuAudio");
 
+        // VERIFICA SE É O POPOUT
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('popout')) {
             meuNick = urlParams.get('nick');
             document.getElementById('tela-login').classList.add('hidden');
             iniciarModoPopout();
+        } else {
+            // VERIFICA SE O NICK ESTÁ SALVO (Preenche o input)
+            const nickSalvo = localStorage.getItem('anbu_nick_salvo');
+            if(nickSalvo) {
+                document.getElementById('input-nick').value = nickSalvo;
+            }
+
+            // VERIFICA SE ACABOU DE TOMAR UM F5 GLOBAL
+            if (sessionStorage.getItem('auto_resume_anbu') === 'true') {
+                sessionStorage.removeItem('auto_resume_anbu');
+                if (nickSalvo) {
+                    document.getElementById('tela-login').classList.add('hidden');
+                    document.getElementById('overlay-retomar').classList.remove('hidden');
+                }
+            }
         }
 
         // ==========================================
         // 0. ATUALIZAÇÃO GLOBAL (F5) E ÁUDIOS
         // ==========================================
-        
-        // Escuta comandos de Refresh
         onValue(ref(db, 'comandos/recarregar'), (snapshot) => {
             const timestampF5 = snapshot.val();
-            // Se o comando de F5 foi dado DEPOIS que eu abri a página, eu recarrego!
             if (timestampF5 && timestampF5 > HORA_INICIO_SISTEMA) {
+                // Salva na sessão que foi um F5 forçado
+                sessionStorage.setItem('auto_resume_anbu', 'true');
                 window.location.reload(true);
             }
         });
 
-        // O botão dispara o refresh
         window.forcarAtualizacaoGlobal = () => {
             if(confirm("Isso vai atualizar a tela de TODOS os usuários online. Deseja continuar?")) {
                 set(ref(db, 'comandos/recarregar'), Date.now());
@@ -202,6 +225,9 @@
             const input = document.getElementById("input-nick").value.trim().toUpperCase();
             if(!input) return alert("Identifique-se!");
             meuNick = input;
+            
+            // Salva no localStorage para não precisar digitar de novo
+            localStorage.setItem('anbu_nick_salvo', meuNick);
 
             audioPlayer.muted = true;
             const audioData = AUDIOS_DISPONIVEIS[meuAudioId] || Object.values(AUDIOS_DISPONIVEIS)[0];
@@ -213,6 +239,13 @@
                 audioPlayer.muted = false; 
                 irParaPainel();
             }).catch(e => { irParaPainel(); });
+        };
+
+        // Função do botão "RETOMAR RÁDIO" pós F5
+        window.retomarConexao = () => {
+            document.getElementById('overlay-retomar').classList.add('hidden');
+            meuNick = localStorage.getItem('anbu_nick_salvo');
+            iniciarSistema(); // O clique do botão valida o áudio no Chrome!
         };
 
         function irParaPainel() {
@@ -265,8 +298,6 @@
                 if(!AUDIOS_DISPONIVEIS[meuAudioId]) meuAudioId = "cebolinha"; 
                 
                 const checked = id === meuAudioId ? "checked" : "";
-                
-                // Lixeira de volta! (Exceto para o cebolinha que é o fallback seguro do sistema)
                 const botaoLixo = id === "cebolinha" ? "" : `<button type="button" onclick="deletarAudioBanco('${id}')" class="text-red-500 hover:text-red-400 p-2 text-lg transition" title="Apagar do Sistema">🗑️</button>`;
 
                 container.innerHTML += `
@@ -535,7 +566,6 @@
                 </div>
             `;
 
-            // Refaz função com a lógica de update global
             window.enviarAlerta = () => {
                 if(emProcessamento) return;
                 emProcessamento = true;
@@ -600,12 +630,6 @@
                     document.getElementById("txt-pop").innerText = "PÂNICO";
                     document.getElementById("txt-pop").classList.replace("text-white", "text-gray-500");
                 }
-            });
-            
-            // F5 Global reflete no overlay também
-            onValue(ref(db, 'comandos/recarregar'), (snapshot) => {
-                const timestampF5 = snapshot.val();
-                if (timestampF5 && timestampF5 > HORA_INICIO_SISTEMA) window.location.reload(true);
             });
         }
     </script>
