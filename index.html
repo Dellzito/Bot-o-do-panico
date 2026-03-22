@@ -19,15 +19,12 @@
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <audio id="alarmSound" preload="auto" loop>
-        <source src="cebolinha-bobo-do-outro-lado.mp3" type="audio/mpeg">
-    </audio>
+    <audio id="alarmSound" preload="auto" loop src="cebolinha-bobo-do-outro-lado.mp3"></audio>
 
     <div id="login-screen" class="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-sm z-50 text-center">
         <h1 class="text-2xl font-bold text-red-500 mb-6 uppercase italic font-black">Frequência ANBU</h1>
         <input id="nick-input" type="text" placeholder="SEU NICK" class="w-full p-4 rounded-xl bg-slate-800 border border-slate-700 mb-4 text-white font-bold uppercase">
-        <button onclick="entrarNoRadio()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-bold transition">CONECTAR RÁDIO</button>
-        <p id="audio-error" class="text-[10px] text-yellow-500 mt-4 uppercase"></p>
+        <button id="btn-entrar" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-bold transition">CONECTAR E ATIVAR RÁDIO</button>
     </div>
 
     <div id="radio-panel" class="hidden w-full max-w-2xl space-y-4">
@@ -39,16 +36,16 @@
                 </div>
                 <div class="flex gap-2">
                     <button onclick="fazerPopOut()" class="p-3 bg-slate-800 rounded-xl border border-slate-700 text-blue-400">🔲</button>
-                    <button onclick="toggleAudio()" id="audio-btn" class="p-3 bg-slate-800 rounded-xl border border-slate-700">🔇</button>
+                    <button onclick="toggleAudioManualmente()" id="audio-btn" class="p-3 bg-slate-800 rounded-xl border border-slate-700">🔇</button>
                 </div>
             </div>
 
-            <button id="main-panic-btn" onclick="dispararAlerta()" class="w-full py-20 rounded-2xl bg-slate-950 border-2 border-slate-800 text-2xl font-black text-slate-800 transition-all">
+            <button id="main-panic-btn" class="w-full py-20 rounded-2xl bg-slate-950 border-2 border-slate-800 text-2xl font-black text-slate-800 transition-all">
                 🚨 DISPARAR PÂNICO
             </button>
 
             <div id="panic-msg" class="hidden mt-6 p-4 bg-red-600 text-white rounded-xl text-center font-black animate-bounce text-xl border-2 border-white">
-                ALERTA DE APOIO!
+                SINAL DE APOIO DETECTADO!
             </div>
         </div>
 
@@ -77,52 +74,63 @@
         let audioHabilitado = false;
         const audioTag = document.getElementById("alarmSound");
 
-        window.entrarNoRadio = () => {
+        // LÓGICA DE LOGIN COM ATIVAÇÃO DE ÁUDIO
+        document.getElementById('btn-entrar').addEventListener('click', () => {
             const nick = document.getElementById('nick-input').value.trim().toUpperCase();
-            if(!nick) return alert("Nick vazio!");
+            if(!nick) return alert("Identifique-se!");
             
             meuNick = nick;
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('radio-panel').classList.remove('hidden');
-            document.getElementById('display-nick').textContent = meuNick;
 
-            // FORÇA O NAVEGADOR A LIBERAR O SOM NO MOMENTO DO CLIQUE
+            // O SEGREDO ESTÁ AQUI: O navegador libera o som após esse clique
             audioTag.play().then(() => {
                 audioTag.pause();
                 audioTag.currentTime = 0;
                 audioHabilitado = true;
-                atualizarBtnAudio();
-            }).catch(error => {
-                console.log("Erro de Autoplay:", error);
-                document.getElementById('audio-error').textContent = "⚠️ Clique no mudo (🔇) para forçar o áudio!";
+                finalizarLogin();
+            }).catch(e => {
+                console.error("Erro ao iniciar áudio:", e);
+                audioHabilitado = true; // Forçamos mesmo assim para tentar depois
+                finalizarLogin();
             });
-            
+        });
+
+        function finalizarLogin() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('radio-panel').classList.remove('hidden');
+            document.getElementById('display-nick').textContent = meuNick;
+            atualizarBtnAudio();
             iniciarMonitoramento();
             atualizarPresenca(true);
             setInterval(() => atualizarPresenca(true), 30000);
-        };
+        }
 
-        window.toggleAudio = () => {
+        window.toggleAudioManualmente = () => {
             audioHabilitado = !audioHabilitado;
-            atualizarBtnAudio();
-            if(!audioHabilitado) { audioTag.pause(); audioTag.currentTime = 0; }
-            else {
-                // Tentativa de re-ativar o contexto de áudio
-                audioTag.play().then(() => { audioTag.pause(); }).catch(e => console.log(e));
+            if(!audioHabilitado) {
+                audioTag.pause();
+                audioTag.currentTime = 0;
+            } else {
+                // Tenta "acordar" o áudio de novo
+                audioTag.play().then(() => audioTag.pause());
             }
+            atualizarBtnAudio();
         };
 
         function atualizarBtnAudio() {
             const btn = document.getElementById('audio-btn');
-            btn.textContent = audioHabilitado ? '🔊' : '🔇';
-            btn.classList.toggle('border-green-500', audioHabilitado);
+            if(btn) {
+                btn.textContent = audioHabilitado ? '🔊' : '🔇';
+                btn.classList.toggle('border-green-500', audioHabilitado);
+            }
         }
 
-        window.dispararAlerta = async () => {
+        // DISPARAR PÂNICO
+        document.getElementById('main-panic-btn').addEventListener('click', async () => {
+            if(!meuNick) return;
             const ref = doc(db, "panic_system", "status");
             await setDoc(ref, { ativo: true, por: meuNick, time: Date.now() });
             setTimeout(() => updateDoc(ref, { ativo: false }), 12000);
-        };
+        });
 
         window.fazerPopOut = () => {
             const width = 250, height = 300;
@@ -146,14 +154,7 @@
                     
                     if(audioHabilitado) {
                         audioTag.currentTime = 0;
-                        const p = audioTag.play();
-                        if (p !== undefined) {
-                            p.catch(e => {
-                                console.log("Erro ao tocar:", e);
-                                audioHabilitado = false;
-                                atualizarBtnAudio();
-                            });
-                        }
+                        audioTag.play().catch(e => console.log("O navegador impediu o som. Clique no site!"));
                     }
                 } else {
                     card.classList.remove('neon-panic');
