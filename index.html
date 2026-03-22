@@ -20,6 +20,9 @@
         }
 
         .online-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 6px; box-shadow: 0 0 8px #22c55e; }
+        
+        /* Botão travado enquanto processa */
+        .btn-travado { opacity: 0.5; pointer-events: none; cursor: not-allowed; }
     </style>
 </head>
 <body class="flex items-center justify-center h-screen p-4">
@@ -76,7 +79,8 @@
 
         let meuNick = "";
         let somLigado = true;
-        let estadoPanico = false; // Controle global se o pânico está ativo
+        let estadoPanico = false; 
+        let emProcessamento = false; // Trava anti-spam
         const audioPlayer = document.getElementById("meuAudio");
 
         // VERIFICA SE É O POPOUT
@@ -134,18 +138,27 @@
             }
         };
 
-        // 3. ENVIAR OU CANCELAR PÂNICO (TOGGLE)
+        // 3. ENVIAR OU CANCELAR PÂNICO (COM TRAVA ANTI-SPAM)
         window.enviarAlerta = () => {
-            if(!meuNick) return;
+            if(!meuNick || emProcessamento) return;
+            
+            emProcessamento = true; // Trava o botão
+            document.getElementById("btn-panico").classList.add("btn-travado");
+
             const panicoRef = ref(db, 'alerta_global');
             
             if (estadoPanico) {
-                // Se já está ativo, clica para DESLIGAR
                 set(panicoRef, { ativo: false, quem: "" });
             } else {
-                // Se está desligado, clica para LIGAR
                 set(panicoRef, { ativo: true, quem: meuNick, timestamp: Date.now() });
             }
+
+            // Destrava o botão depois de 1.5 segundos (tempo de sobra pro Firebase sincronizar)
+            setTimeout(() => {
+                emProcessamento = false;
+                const btnAtual = document.getElementById("btn-panico");
+                if (btnAtual) btnAtual.classList.remove("btn-travado");
+            }, 1500);
         };
 
         // 4. OUVIR O PÂNICO
@@ -158,10 +171,16 @@
                 const txtQuem = document.getElementById("texto-quem");
 
                 if (dados && dados.ativo === true) {
+                    
+                    // Só dá o play se o áudio NÃO estiver tocando já (evita gaguejar)
+                    if (!estadoPanico && somLigado) {
+                        audioPlayer.currentTime = 0;
+                        audioPlayer.play().catch(e => console.log("Áudio bloqueado:", e));
+                    }
+
                     estadoPanico = true;
                     botao.classList.add("alerta-piscando");
                     
-                    // Se foi você quem pediu ajuda, o botão diz "CANCELAR"
                     if (dados.quem === meuNick) {
                         txtPanico.innerText = "CANCELAR ALARME";
                     } else {
@@ -172,18 +191,19 @@
                     txtQuem.innerText = dados.quem;
                     txtQuem.classList.remove("hidden");
 
-                    if (somLigado) {
-                        audioPlayer.play().catch(e => console.log("Áudio bloqueado:", e));
-                    }
                 } else {
+                    
+                    // Só pausa se o áudio estivesse tocando
+                    if (estadoPanico) {
+                        audioPlayer.pause();
+                        audioPlayer.currentTime = 0;
+                    }
+
                     estadoPanico = false;
                     botao.classList.remove("alerta-piscando");
                     txtPanico.innerText = "PÂNICO";
                     txtPanico.classList.replace("text-white", "text-gray-500");
                     txtQuem.classList.add("hidden");
-
-                    audioPlayer.pause();
-                    audioPlayer.currentTime = 0;
                 }
             });
         }
@@ -236,12 +256,22 @@
             `;
 
             window.enviarAlerta = () => {
+                if(emProcessamento) return;
+                emProcessamento = true;
+                document.getElementById("btn-panico-pop").classList.add("btn-travado");
+
                 const refPanico = ref(db, 'alerta_global');
                 if (estadoPanico) {
                     set(refPanico, { ativo: false, quem: "" });
                 } else {
                     set(refPanico, { ativo: true, quem: meuNick, timestamp: Date.now() });
                 }
+
+                setTimeout(() => {
+                    emProcessamento = false;
+                    const btnAtual = document.getElementById("btn-panico-pop");
+                    if (btnAtual) btnAtual.classList.remove("btn-travado");
+                }, 1500);
             };
 
             onValue(ref(db, 'alerta_global'), (snapshot) => {
