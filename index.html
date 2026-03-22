@@ -10,15 +10,15 @@
         
         /* Efeito Neon para o Alerta */
         .neon-panic { 
-            animation: pulse-neon 0.6s infinite alternate; 
+            animation: pulse-neon 0.5s infinite alternate; 
             border: 4px solid #ff0000 !important;
-            box-shadow: 0 0 20px #ff0000, inset 0 0 15px #ff0000 !important;
+            box-shadow: 0 0 25px #ff0000, inset 0 0 20px #ff0000 !important;
             background: #450a0a !important;
         }
 
         @keyframes pulse-neon {
-            from { opacity: 0.8; transform: scale(1); }
-            to { opacity: 1; transform: scale(1.05); }
+            from { opacity: 0.9; transform: scale(1); }
+            to { opacity: 1; transform: scale(1.03); }
         }
 
         .online-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 6px; box-shadow: 0 0 8px #22c55e; }
@@ -49,7 +49,7 @@
                 🚨 DISPARAR PÂNICO
             </button>
 
-            <div id="panic-msg" class="hidden mt-6 p-4 bg-red-600 text-white rounded-xl text-center font-black animate-bounce text-xl">
+            <div id="panic-msg" class="hidden mt-6 p-4 bg-red-600 text-white rounded-xl text-center font-black animate-bounce text-xl border-2 border-white">
                 ALERTA DE APOIO!
             </div>
         </div>
@@ -78,9 +78,8 @@
         let meuNick = "";
         let audioLigado = false;
         
-        // --- CONFIGURAÇÃO DO ÁUDIO ---
-        // Aqui você coloca o link do áudio do seu GitHub (Raw link)
-        const URL_AUDIO = "https://raw.githubusercontent.com/rafael-m-silva/sounds/main/emergency-alarm.mp3"; 
+        // --- LINK DIRETO DO GITHUB ATUALIZADO ---
+        const URL_AUDIO = "https://raw.githubusercontent.com/Dellzito/Bot-o-do-panico/main/cebolinha-bobo-do-outro-lado.mp3"; 
         const sirene = new Audio(URL_AUDIO); 
         sirene.loop = true;
 
@@ -99,13 +98,13 @@
             document.getElementById('radio-panel').classList.remove('hidden');
             document.getElementById('display-nick').textContent = meuNick;
 
-            // Desbloqueia o áudio no primeiro clique
+            // Pré-carrega e destrava o áudio
             sirene.play().then(() => {
                 sirene.pause();
                 sirene.currentTime = 0;
                 audioLigado = true;
                 atualizarBtnAudio();
-            }).catch(e => console.log("Áudio bloqueado", e));
+            }).catch(e => console.log("Aguardando interação para áudio."));
             
             iniciarMonitoramento();
             atualizarPresenca(true);
@@ -120,13 +119,16 @@
 
         function atualizarBtnAudio() {
             const btn = document.getElementById('audio-btn');
-            btn.textContent = audioLigado ? '🔊' : '🔇';
-            btn.classList.toggle('border-green-500', audioLigado);
+            if(btn) {
+                btn.textContent = audioLigado ? '🔊' : '🔇';
+                btn.classList.toggle('border-green-500', audioLigado);
+            }
         }
 
         window.dispararAlerta = async () => {
             const ref = doc(db, "panic_system", "status");
             await setDoc(ref, { ativo: true, por: meuNick, time: Date.now() });
+            // Tempo do alerta na tela (12 segundos)
             setTimeout(() => updateDoc(ref, { ativo: false }), 12000);
         };
 
@@ -138,15 +140,14 @@
 
         function configurarModoPopOut() {
             document.body.innerHTML = `
-                <div id="popout-body" class="flex flex-col items-center justify-center h-screen bg-slate-950 p-4 border-2 border-slate-800 transition-all duration-300">
+                <div id="popout-body" class="flex flex-col items-center justify-center h-screen bg-slate-950 p-4 border-2 border-slate-800 transition-all duration-300 overflow-hidden">
                     <p class="text-[10px] font-black mb-2 uppercase text-slate-500">Ninja: ${meuNick}</p>
                     <button id="popout-btn" onclick="dispararAlerta()" class="w-full h-full rounded-2xl bg-slate-900 text-slate-700 font-black text-2xl border-2 border-slate-800 active:scale-90 transition-all shadow-inner">
                         🚨 PÂNICO
                     </button>
-                    <p id="alert-name" class="hidden mt-2 text-white font-bold text-center text-xs uppercase"></p>
+                    <p id="alert-name" class="hidden mt-2 text-white font-bold text-center text-[10px] uppercase italic animate-pulse"></p>
                 </div>
             `;
-            
             iniciarMonitoramentoPopOut();
         }
 
@@ -158,15 +159,21 @@
                 const name = document.getElementById('alert-name');
                 if(d?.ativo) {
                     body.classList.add('neon-panic');
-                    btn.classList.add('bg-red-600', 'text-white');
+                    btn.classList.add('bg-red-600', 'text-white', 'border-white');
                     name.classList.remove('hidden');
                     name.textContent = `Apoio: ${d.por}`;
                 } else {
                     body.classList.remove('neon-panic');
-                    btn.classList.remove('bg-red-600', 'text-white');
+                    btn.classList.remove('bg-red-600', 'text-white', 'border-white');
                     name.classList.add('hidden');
                 }
             });
+            // Re-bind da função dispararAlerta no PopOut
+            window.dispararAlerta = async () => {
+                const ref = doc(db, "panic_system", "status");
+                await setDoc(ref, { ativo: true, por: meuNick, time: Date.now() });
+                setTimeout(() => updateDoc(ref, { ativo: false }), 12000);
+            };
         }
 
         function iniciarMonitoramento() {
@@ -178,14 +185,14 @@
                 
                 if(data?.ativo) {
                     card.classList.add('neon-panic');
-                    btn.classList.add('text-white');
+                    btn.classList.add('text-white', 'border-white');
                     btn.innerHTML = `🚨 APOIAR: ${data.por}!`;
                     msg.classList.remove('hidden');
                     msg.innerHTML = `ANBU <b>${data.por}</b> SOB ATAQUE!`;
-                    if(audioLigado) sirene.play().catch(() => {});
+                    if(audioLigado) sirene.play().catch(() => console.log("Erro ao tocar áudio. Interaja com a página."));
                 } else {
                     card.classList.remove('neon-panic');
-                    btn.classList.remove('text-white');
+                    btn.classList.remove('text-white', 'border-white');
                     btn.innerHTML = "🚨 DISPARAR PÂNICO";
                     msg.classList.add('hidden');
                     sirene.pause(); sirene.currentTime = 0;
