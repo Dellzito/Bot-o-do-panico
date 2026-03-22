@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANBU - Rádio de Emergência</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #020617; color: #f1f5f9; font-family: sans-serif; }
+        .panic-active { animation: pulse-red 0.8s infinite; background: #ef4444 !important; }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 10px #22c55e; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="login-screen" class="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-sm">
+        <h1 class="text-2xl font-bold text-red-500 mb-6 text-center uppercase tracking-tighter">Frequência ANBU</h1>
+        <input id="nick-input" type="text" placeholder="Digite seu Nick" class="w-full p-4 rounded-xl bg-slate-800 border border-slate-700 mb-4 focus:outline-none focus:border-red-500 transition-all">
+        <button onclick="entrarNoRadio()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-bold transition">CONECTAR RÁDIO</button>
+    </div>
+
+    <div id="radio-panel" class="hidden w-full max-w-2xl space-y-6">
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-xs font-black text-slate-500 uppercase tracking-widest">Operador Atual</h2>
+                    <p id="display-nick" class="text-xl font-bold text-white"></p>
+                </div>
+                <button onclick="toggleAudio()" id="audio-btn" class="p-3 bg-slate-800 rounded-full border border-slate-700">🔇</button>
+            </div>
+
+            <button id="main-panic-btn" onclick="dispararAlerta()" class="w-full py-20 rounded-2xl bg-slate-800 border-4 border-slate-700 text-3xl font-black text-slate-600 transition-all active:scale-95">
+                🚨 BOTÃO DE PÂNICO
+            </button>
+
+            <div id="panic-msg" class="hidden mt-6 p-4 bg-red-600 text-white rounded-xl text-center font-bold animate-bounce text-lg">
+                ALERTA! APOIO SOLICITADO!
+            </div>
+        </div>
+
+        <div class="bg-slate-900/50 border border-slate-800 rounded-3xl p-6">
+            <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Ninjas na Escuta</h3>
+            <div id="online-list" class="flex flex-wrap gap-3">
+                </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // CONFIGURAÇÃO DO SEU FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
+            authDomain: "g-2cb53.firebaseapp.com",
+            projectId: "g-2cb53",
+            storageBucket: "g-2cb53.firebasestorage.app",
+            messagingSenderId: "292095146978",
+            appId: "1:292095146978:web:836d833230907d081017bb"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let meuNick = "";
+        let audioLigado = false;
+        const sirene = new Audio('https://orangefree.sounds.com/alerts/emergency_siren.mp3');
+        sirene.loop = true;
+
+        // Entrar no sistema
+        window.entrarNoRadio = async () => {
+            const input = document.getElementById('nick-input');
+            if(!input.value.trim()) return alert("Digite seu nick!");
+            
+            meuNick = input.value.trim().toUpperCase();
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('radio-panel').classList.remove('hidden');
+            document.getElementById('display-nick').textContent = meuNick;
+
+            // Iniciar Presença
+            atualizarPresença(true);
+            setInterval(() => atualizarPresença(true), 60000); // Heartbeat
+            iniciarEscutaGlobal();
+        };
+
+        window.toggleAudio = () => {
+            audioLigado = !audioLigado;
+            document.getElementById('audio-btn').textContent = audioLigado ? '🔊' : '🔇';
+            if(audioLigado) { sirene.play().then(() => { sirene.pause(); sirene.currentTime = 0; }); }
+        };
+
+        window.dispararAlerta = async () => {
+            const ref = doc(db, "panic_system", "status");
+            await setDoc(ref, { ativo: true, por: meuNick, timestamp: Date.now() });
+            // Auto-reset em 15 segundos
+            setTimeout(() => setDoc(ref, { ativo: false }), 15000);
+        };
+
+        async function atualizarPresença(status) {
+            if(!meuNick) return;
+            await setDoc(doc(db, "presenca_radio", meuNick), {
+                id: meuNick,
+                online: status,
+                visto_por_ultimo: Date.now()
+            });
+        }
+
+        function iniciarEscutaGlobal() {
+            // Ouvir Pânico
+            onSnapshot(doc(db, "panic_system", "status"), (snap) => {
+                const data = snap.data();
+                const btn = document.getElementById('main-panic-btn');
+                const msg = document.getElementById('panic-msg');
+                if(data?.ativo) {
+                    btn.classList.add('panic-active');
+                    btn.textContent = `🚨 SOCORRO: ${data.por}!`;
+                    msg.classList.remove('hidden');
+                    msg.textContent = `O ANBU ${data.por} PRECISA DE AJUDA!`;
+                    if(audioLigado) sirene.play().catch(() => {});
+                } else {
+                    btn.classList.remove('panic-active');
+                    btn.textContent = "🚨 BOTÃO DE PÂNICO";
+                    msg.classList.add('hidden');
+                    sirene.pause(); sirene.currentTime = 0;
+                }
+            });
+
+            // Ouvir Online
+            onSnapshot(collection(db, "presenca_radio"), (snap) => {
+                const lista = document.getElementById('online-list');
+                lista.innerHTML = "";
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    if(d.online && (Date.now() - d.visto_por_ultimo < 120000)) {
+                        lista.innerHTML += `<div class="bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-sm font-bold flex items-center"><span class="online-dot"></span>${d.id}</div>`;
+                    }
+                });
+            });
+        }
+
+        // Offline ao fechar a aba
+        window.addEventListener('beforeunload', () => atualizarPresença(false));
+    </script>
+</body>
+</html>
