@@ -7,54 +7,54 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #020617; color: #f1f5f9; font-family: sans-serif; }
-        .panic-active { animation: pulse-red 0.8s infinite; background: #ef4444 !important; }
+        .panic-active { animation: pulse-red 0.8s infinite; background: #ef4444 !important; border-color: white !important; }
         @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); transform: scale(1); }
+            70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); transform: scale(1.05); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(1); }
         }
-        .online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 8px; box-shadow: 0 0 10px #22c55e; }
+        .online-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; margin-right: 6px; box-shadow: 0 0 8px #22c55e; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <div id="login-screen" class="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-sm">
+    <div id="login-screen" class="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-sm z-50">
         <h1 class="text-2xl font-bold text-red-500 mb-6 text-center uppercase tracking-tighter">Frequência ANBU</h1>
-        <input id="nick-input" type="text" placeholder="Digite seu Nick" class="w-full p-4 rounded-xl bg-slate-800 border border-slate-700 mb-4 focus:outline-none focus:border-red-500 transition-all">
-        <button onclick="entrarNoRadio()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-bold transition">CONECTAR RÁDIO</button>
+        <input id="nick-input" type="text" placeholder="Seu Nick" class="w-full p-4 rounded-xl bg-slate-800 border border-slate-700 mb-4 focus:outline-none focus:border-red-500 text-white font-bold">
+        <button onclick="entrarNoRadio()" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-bold transition shadow-lg">CONECTAR RÁDIO</button>
     </div>
 
-    <div id="radio-panel" class="hidden w-full max-w-2xl space-y-6">
+    <div id="radio-panel" class="hidden w-full max-w-2xl space-y-4">
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
-            <div class="flex justify-between items-center mb-8">
+            <div class="flex justify-between items-center mb-6">
                 <div>
-                    <h2 class="text-xs font-black text-slate-500 uppercase tracking-widest">Operador Atual</h2>
-                    <p id="display-nick" class="text-xl font-bold text-white"></p>
+                    <h2 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Operador</h2>
+                    <p id="display-nick" class="text-xl font-black text-white italic"></p>
                 </div>
-                <button onclick="toggleAudio()" id="audio-btn" class="p-3 bg-slate-800 rounded-full border border-slate-700">🔇</button>
+                <div class="flex gap-2">
+                    <button onclick="fazerPopOut()" class="p-3 bg-slate-800 rounded-xl border border-slate-700 text-blue-400" title="Destacar Botão">🔲</button>
+                    <button onclick="toggleAudio()" id="audio-btn" class="p-3 bg-slate-800 rounded-xl border border-slate-700">🔇</button>
+                </div>
             </div>
 
-            <button id="main-panic-btn" onclick="dispararAlerta()" class="w-full py-20 rounded-2xl bg-slate-800 border-4 border-slate-700 text-3xl font-black text-slate-600 transition-all active:scale-95">
-                🚨 BOTÃO DE PÂNICO
+            <button id="main-panic-btn" onclick="dispararAlerta()" class="w-full py-20 rounded-2xl bg-slate-950 border-2 border-slate-800 text-2xl font-black text-slate-700 transition-all active:scale-95">
+                🚨 DISPARAR PÂNICO
             </button>
 
-            <div id="panic-msg" class="hidden mt-6 p-4 bg-red-600 text-white rounded-xl text-center font-bold animate-bounce text-lg">
-                ALERTA! APOIO SOLICITADO!
+            <div id="panic-msg" class="hidden mt-6 p-4 bg-red-600 text-white rounded-xl text-center font-black animate-bounce">
+                ALERTA DE APOIO!
             </div>
         </div>
 
-        <div class="bg-slate-900/50 border border-slate-800 rounded-3xl p-6">
-            <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Ninjas na Escuta</h3>
-            <div id="online-list" class="flex flex-wrap gap-3">
-                </div>
+        <div class="bg-slate-900/50 border border-slate-800 rounded-3xl p-4">
+            <div id="online-list" class="flex flex-wrap gap-2"></div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // CONFIGURAÇÃO DO SEU FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyC-QaPr7O6RkWR3vpXCg4zrnUWw3TzU9ss",
             authDomain: "g-2cb53.firebaseapp.com",
@@ -69,82 +69,112 @@
 
         let meuNick = "";
         let audioLigado = false;
-        const sirene = new Audio('https://orangefree.sounds.com/alerts/emergency_siren.mp3');
+        const sirene = new Audio('https://cdn.pixabay.com/audio/2022/03/10/audio_507634f378.mp3'); 
         sirene.loop = true;
 
-        // Entrar no sistema
-        window.entrarNoRadio = async () => {
-            const input = document.getElementById('nick-input');
-            if(!input.value.trim()) return alert("Digite seu nick!");
+        // Verifica se é uma janela de Pop-out
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('popout')) {
+            meuNick = urlParams.get('nick');
+            configurarModoPopOut();
+        }
+
+        window.entrarNoRadio = () => {
+            const nick = document.getElementById('nick-input').value.trim().toUpperCase();
+            if(!nick) return alert("Identifique-se!");
             
-            meuNick = input.value.trim().toUpperCase();
+            meuNick = nick;
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('radio-panel').classList.remove('hidden');
             document.getElementById('display-nick').textContent = meuNick;
 
-            // Iniciar Presença
-            atualizarPresença(true);
-            setInterval(() => atualizarPresença(true), 60000); // Heartbeat
-            iniciarEscutaGlobal();
+            // Destrava áudio
+            sirene.play().then(() => { sirene.pause(); audioLigado = true; atualizarBtnAudio(); });
+            
+            iniciarEscuta();
+            atualizarPresenca(true);
+            setInterval(() => atualizarPresenca(true), 30000);
         };
 
         window.toggleAudio = () => {
             audioLigado = !audioLigado;
-            document.getElementById('audio-btn').textContent = audioLigado ? '🔊' : '🔇';
-            if(audioLigado) { sirene.play().then(() => { sirene.pause(); sirene.currentTime = 0; }); }
+            atualizarBtnAudio();
+            if(!audioLigado) { sirene.pause(); sirene.currentTime = 0; }
         };
+
+        function atualizarBtnAudio() {
+            const btn = document.getElementById('audio-btn');
+            btn.textContent = audioLigado ? '🔊' : '🔇';
+            btn.classList.toggle('border-green-500', audioLigado);
+        }
 
         window.dispararAlerta = async () => {
             const ref = doc(db, "panic_system", "status");
-            await setDoc(ref, { ativo: true, por: meuNick, timestamp: Date.now() });
-            // Auto-reset em 15 segundos
-            setTimeout(() => setDoc(ref, { ativo: false }), 15000);
+            await setDoc(ref, { ativo: true, por: meuNick, time: Date.now() });
+            setTimeout(() => updateDoc(ref, { ativo: false }), 10000);
         };
 
-        async function atualizarPresença(status) {
-            if(!meuNick) return;
-            await setDoc(doc(db, "presenca_radio", meuNick), {
-                id: meuNick,
-                online: status,
-                visto_por_ultimo: Date.now()
-            });
+        window.fazerPopOut = () => {
+            const width = 250;
+            const height = 300;
+            const left = window.screen.width - width;
+            window.open(`${window.location.origin}${window.location.pathname}?popout=true&nick=${meuNick}`, 'ANBU_PANIC', `width=${width},height=${height},left=${left},top=0,menubar=no,status=no,toolbar=no`);
+        };
+
+        function configurarModoPopOut() {
+            document.body.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-screen bg-red-950 p-2 border-4 border-red-600">
+                    <p class="text-[10px] font-black mb-2">ANBU: ${meuNick}</p>
+                    <button id="main-panic-btn" onclick="dispararAlerta()" class="w-full h-full rounded-xl bg-red-600 text-white font-black text-2xl active:bg-red-800 shadow-inner">
+                        🚨 PÂNICO
+                    </button>
+                </div>
+            `;
+            // No popout, só precisamos disparar, não ouvir som (a aba principal cuida disso)
+            window.dispararAlerta = async () => {
+                const ref = doc(db, "panic_system", "status");
+                await setDoc(ref, { ativo: true, por: meuNick, time: Date.now() });
+                setTimeout(() => updateDoc(ref, { ativo: false }), 10000);
+            };
         }
 
-        function iniciarEscutaGlobal() {
-            // Ouvir Pânico
+        function iniciarEscuta() {
             onSnapshot(doc(db, "panic_system", "status"), (snap) => {
                 const data = snap.data();
                 const btn = document.getElementById('main-panic-btn');
                 const msg = document.getElementById('panic-msg');
                 if(data?.ativo) {
                     btn.classList.add('panic-active');
-                    btn.textContent = `🚨 SOCORRO: ${data.por}!`;
+                    btn.innerHTML = `🚨 APOIAR: ${data.por}!`;
                     msg.classList.remove('hidden');
-                    msg.textContent = `O ANBU ${data.por} PRECISA DE AJUDA!`;
-                    if(audioLigado) sirene.play().catch(() => {});
+                    msg.innerHTML = `ANBU <b>${data.por}</b> EM PERIGO!`;
+                    if(audioLigado) sirene.play();
                 } else {
                     btn.classList.remove('panic-active');
-                    btn.textContent = "🚨 BOTÃO DE PÂNICO";
+                    btn.innerHTML = "🚨 DISPARAR PÂNICO";
                     msg.classList.add('hidden');
                     sirene.pause(); sirene.currentTime = 0;
                 }
             });
 
-            // Ouvir Online
             onSnapshot(collection(db, "presenca_radio"), (snap) => {
                 const lista = document.getElementById('online-list');
                 lista.innerHTML = "";
                 snap.forEach(doc => {
                     const d = doc.data();
-                    if(d.online && (Date.now() - d.visto_por_ultimo < 120000)) {
-                        lista.innerHTML += `<div class="bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-sm font-bold flex items-center"><span class="online-dot"></span>${d.id}</div>`;
+                    if(d.online && (Date.now() - d.timestamp < 60000)) {
+                        lista.innerHTML += `<div class="bg-slate-800 px-2 py-1 rounded text-[10px] font-bold border border-slate-700"><span class="online-dot"></span>${d.id}</div>`;
                     }
                 });
             });
         }
 
-        // Offline ao fechar a aba
-        window.addEventListener('beforeunload', () => atualizarPresença(false));
+        async function atualizarPresenca(status) {
+            if(!meuNick) return;
+            await setDoc(doc(db, "presenca_radio", meuNick), { id: meuNick, online: status, timestamp: Date.now() }, { merge: true });
+        }
+
+        window.onbeforeunload = () => atualizarPresenca(false);
     </script>
 </body>
 </html>
