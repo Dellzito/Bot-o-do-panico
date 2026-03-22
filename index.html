@@ -27,7 +27,6 @@
         .barra-preenchimento { height: 100%; background: #ef4444; width: 100%; transition: width 10s linear; }
         .animar-barra { width: 0% !important; }
         
-        /* Slider de Volume Personalizado */
         input[type=range]::-webkit-slider-thumb { background: #22c55e; }
     </style>
 </head>
@@ -53,6 +52,8 @@
             </div>
             
             <div class="flex flex-wrap justify-center sm:justify-end gap-2 w-full sm:w-auto">
+                <button onclick="forcarAtualizacaoGlobal()" class="bg-red-800/80 px-3 py-2 rounded-xl font-bold hover:bg-red-700 text-xs border border-red-600 transition flex items-center gap-1 text-white shadow-lg" title="Atualizar a tela de todos">🔄 F5 GERAL</button>
+                
                 <button onclick="abrirConfiguracoes()" class="bg-gray-700/80 px-3 py-2 rounded-xl font-bold hover:bg-gray-600 text-xs border border-gray-600 transition flex items-center gap-1" title="Configurar Sons">⚙️ SONS</button>
                 <button onclick="abrirPopout()" class="bg-gray-700/80 px-3 py-2 rounded-xl font-bold hover:bg-gray-600 text-xs border border-gray-600 transition flex items-center gap-1" title="Abrir Janela Separada">🔲 OVERLAY</button>
                 
@@ -125,7 +126,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, onDisconnect, update } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
 
-        // COLOQUE SUAS CHAVES AQUI
         const firebaseConfig = {
             apiKey: "AIzaSyAAyP4T4uoKtn4R170k61CenZJNwAoK9L8",
             authDomain: "panico-7c388.firebaseapp.com",
@@ -138,6 +138,9 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+
+        // Marca a hora que o site abriu para não recarregar atoa
+        const HORA_INICIO_SISTEMA = Date.now();
 
         let meuNick = "";
         let somLigado = true;
@@ -161,8 +164,25 @@
         }
 
         // ==========================================
-        // 0. CARREGAR ÁUDIOS DO BANCO DE DADOS
+        // 0. ATUALIZAÇÃO GLOBAL (F5) E ÁUDIOS
         // ==========================================
+        
+        // Escuta comandos de Refresh
+        onValue(ref(db, 'comandos/recarregar'), (snapshot) => {
+            const timestampF5 = snapshot.val();
+            // Se o comando de F5 foi dado DEPOIS que eu abri a página, eu recarrego!
+            if (timestampF5 && timestampF5 > HORA_INICIO_SISTEMA) {
+                window.location.reload(true);
+            }
+        });
+
+        // O botão dispara o refresh
+        window.forcarAtualizacaoGlobal = () => {
+            if(confirm("Isso vai atualizar a tela de TODOS os usuários online. Deseja continuar?")) {
+                set(ref(db, 'comandos/recarregar'), Date.now());
+            }
+        };
+
         onValue(ref(db, 'configuracoes/audios_cadastrados'), (snapshot) => {
             if (snapshot.exists()) {
                 AUDIOS_DISPONIVEIS = snapshot.val();
@@ -231,7 +251,7 @@
         };
 
         // ==========================================
-        // 2. CONFIGURAÇÕES DE ÁUDIO
+        // 2. CONFIGURAÇÕES E REMOÇÃO DE ÁUDIO
         // ==========================================
         window.abrirConfiguracoes = () => {
             renderizarListaDeAudios();
@@ -242,20 +262,35 @@
             const container = document.getElementById("lista-audios");
             container.innerHTML = "";
             Object.keys(AUDIOS_DISPONIVEIS).forEach(id => {
-                if(!AUDIOS_DISPONIVEIS[meuAudioId]) meuAudioId = "cebolinha"; // Fallback seguro
+                if(!AUDIOS_DISPONIVEIS[meuAudioId]) meuAudioId = "cebolinha"; 
                 
                 const checked = id === meuAudioId ? "checked" : "";
+                
+                // Lixeira de volta! (Exceto para o cebolinha que é o fallback seguro do sistema)
+                const botaoLixo = id === "cebolinha" ? "" : `<button type="button" onclick="deletarAudioBanco('${id}')" class="text-red-500 hover:text-red-400 p-2 text-lg transition" title="Apagar do Sistema">🗑️</button>`;
 
                 container.innerHTML += `
-                    <div class="flex items-center justify-between p-2 bg-gray-900 rounded-xl border border-gray-700 transition">
+                    <div class="flex items-center justify-between p-2 bg-gray-900 rounded-xl border border-gray-700 transition hover:border-gray-500">
                         <label class="flex items-center gap-3 cursor-pointer w-full pl-2">
                             <input type="radio" name="audio_escolha" value="${id}" ${checked} class="w-5 h-5 text-red-600 focus:ring-red-500">
-                            <span class="font-bold text-gray-200 text-sm truncate w-full">${AUDIOS_DISPONIVEIS[id].nome}</span>
+                            <span class="font-bold text-gray-200 text-sm truncate w-40">${AUDIOS_DISPONIVEIS[id].nome}</span>
                         </label>
+                        ${botaoLixo}
                     </div>
                 `;
             });
         }
+
+        window.deletarAudioBanco = (id) => {
+            if(confirm("Tem certeza que deseja apagar este som para todos?")) {
+                update(ref(db, 'configuracoes/audios_cadastrados'), { [id]: null }).then(() => {
+                    if(meuAudioId === id) {
+                        meuAudioId = "cebolinha";
+                        localStorage.setItem('anbu_audio_pref', meuAudioId);
+                    }
+                });
+            }
+        };
 
         window.fecharConfiguracoes = () => {
             const radioSelecionado = document.querySelector('input[name="audio_escolha"]:checked');
@@ -500,6 +535,7 @@
                 </div>
             `;
 
+            // Refaz função com a lógica de update global
             window.enviarAlerta = () => {
                 if(emProcessamento) return;
                 emProcessamento = true;
@@ -564,6 +600,12 @@
                     document.getElementById("txt-pop").innerText = "PÂNICO";
                     document.getElementById("txt-pop").classList.replace("text-white", "text-gray-500");
                 }
+            });
+            
+            // F5 Global reflete no overlay também
+            onValue(ref(db, 'comandos/recarregar'), (snapshot) => {
+                const timestampF5 = snapshot.val();
+                if (timestampF5 && timestampF5 > HORA_INICIO_SISTEMA) window.location.reload(true);
             });
         }
     </script>
