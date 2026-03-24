@@ -6,7 +6,6 @@
     <title>Pânico ANBU - Comando Tático</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Removido o 'overflow: hidden' para permitir o scroll na página */
         body { background-color: #0f172a; color: white; font-family: sans-serif; user-select: none; }
         
         .alerta-piscando {
@@ -28,7 +27,6 @@
         .barra-preenchimento { height: 100%; background: #ef4444; width: 100%; transition: width 10s linear; }
         .animar-barra { width: 0% !important; }
         
-        /* Slider de Volume Personalizado */
         input[type=range]::-webkit-slider-thumb { background: #22c55e; }
     </style>
 </head>
@@ -66,7 +64,7 @@
 
         <div id="area-panico" class="w-full bg-gray-900 border-2 border-gray-800 h-72 rounded-[2rem] flex flex-col items-center justify-center transition-all duration-300 shadow-2xl relative p-4">
             
-            <button id="btn-panico" onclick="enviarAlerta()" class="w-full h-full flex flex-col items-center justify-center rounded-[1.5rem] transition-all active:scale-95 outline-none">
+            <button id="btn-panico" onclick="enviarAlerta(); this.blur()" class="w-full h-full flex flex-col items-center justify-center rounded-[1.5rem] transition-all active:scale-95 outline-none">
                 <span class="text-6xl mb-4 drop-shadow-lg">🚨</span>
                 <span id="texto-panico" class="font-black text-3xl text-gray-500 uppercase tracking-widest">PÂNICO</span>
                 <span id="texto-quem" class="hidden mt-4 font-black text-white text-xl bg-black/50 backdrop-blur px-6 py-2 rounded-xl border border-white/10"></span>
@@ -78,8 +76,8 @@
                 <span id="texto-quem-pediu" class="font-bold text-red-300 text-lg bg-black/40 px-4 py-1 rounded-lg mb-4"></span>
                 
                 <div class="flex gap-3 w-full px-4">
-                    <button onclick="responderChamado('indo')" class="flex-1 bg-green-600 hover:bg-green-500 py-3 rounded-xl font-black text-white text-lg border-2 border-green-400 transition-all active:scale-95 shadow-[0_0_15px_rgba(34,197,94,0.4)]">✅ VOU IR</button>
-                    <button onclick="responderChamado('nao_vai')" class="flex-1 bg-red-800 hover:bg-red-700 py-3 rounded-xl font-black text-white text-lg border-2 border-red-500 transition-all active:scale-95">❌ NÃO POSSO</button>
+                    <button onclick="responderChamado('indo'); this.blur()" class="flex-1 bg-green-600 hover:bg-green-500 py-3 rounded-xl font-black text-white text-lg border-2 border-green-400 transition-all active:scale-95 shadow-[0_0_15px_rgba(34,197,94,0.4)]">✅ VOU IR</button>
+                    <button onclick="responderChamado('nao_vai'); this.blur()" class="flex-1 bg-red-800 hover:bg-red-700 py-3 rounded-xl font-black text-white text-lg border-2 border-red-500 transition-all active:scale-95">❌ NÃO POSSO</button>
                 </div>
                 <div class="w-full px-4"><div class="barra-tempo"><div id="barra-timer" class="barra-preenchimento"></div></div></div>
             </div>
@@ -88,6 +86,7 @@
                 <span id="icone-respondido" class="text-5xl mb-4">✅</span>
                 <span id="texto-respondido" class="font-black text-xl text-white uppercase tracking-widest text-center">STATUS ENVIADO</span>
                 <span class="text-xs text-gray-400 mt-4 uppercase text-center">Aguardando cancelamento<br>do líder...</span>
+                <button onclick="forcarCancelamento()" class="mt-4 px-4 py-2 bg-red-900/30 text-red-400 text-xs font-bold rounded-lg border border-red-900/50 hover:bg-red-800/50 transition outline-none">FORÇAR CANCELAMENTO</button>
             </div>
         </div>
 
@@ -105,8 +104,7 @@
             <h2 class="text-2xl font-black text-white mb-2">Sons do Esquadrão</h2>
             <p class="text-xs text-gray-400 mb-4">Gerencie a lista e escolha o seu áudio pessoal de resgate.</p>
             
-            <div class="space-y-2 mb-6 max-h-40 overflow-y-auto pr-2" id="lista-audios">
-                </div>
+            <div class="space-y-2 mb-6 max-h-40 overflow-y-auto pr-2" id="lista-audios"></div>
 
             <div class="flex gap-3 mb-6">
                 <button onclick="testarAudioConfig()" class="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded-xl font-bold transition">▶️ Testar</button>
@@ -140,8 +138,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const HORA_INICIO_SISTEMA = Date.now();
-
         let meuNick = "";
         let somLigado = true;
         let estadoPanico = false;
@@ -163,7 +159,6 @@
             document.getElementById('tela-login').classList.add('hidden');
             iniciarModoPopout();
         } else {
-            // VERIFICA SE O NICK ESTÁ SALVO (Preenche o input)
             const nickSalvo = localStorage.getItem('anbu_nick_salvo');
             if(nickSalvo) {
                 document.getElementById('input-nick').value = nickSalvo;
@@ -193,7 +188,6 @@
             if(!input) return alert("Identifique-se!");
             meuNick = input;
             
-            // Salva no localStorage para não precisar digitar de novo
             localStorage.setItem('anbu_nick_salvo', meuNick);
 
             audioPlayer.muted = true;
@@ -234,13 +228,8 @@
 
         window.mutarRapido = () => {
             const slider = document.getElementById("controle-volume");
-            if(somLigado) {
-                mudarVolume(0);
-                slider.value = 0;
-            } else {
-                mudarVolume(1);
-                slider.value = 1;
-            }
+            if(somLigado) { mudarVolume(0); slider.value = 0; } 
+            else { mudarVolume(1); slider.value = 1; }
         };
 
         // ==========================================
@@ -322,16 +311,25 @@
         // 3. PÂNICO E CANCELAMENTO AUTOMÁTICO
         // ==========================================
         window.enviarAlerta = () => {
-            if(!meuNick || emProcessamento) return;
+            if (!meuNick || emProcessamento) return;
             emProcessamento = true;
             
+            const btnPanico = document.getElementById("btn-panico");
+            if (btnPanico) btnPanico.blur();
+            
             const panicoRef = ref(db, 'alerta_global');
-            if (estadoPanico) {
-                set(panicoRef, { ativo: false, quem: "", respostas: null, audioId: "" }); 
-            } else {
-                set(panicoRef, { ativo: true, quem: meuNick, timestamp: Date.now(), respostas: {}, audioId: meuAudioId });
-            }
-            setTimeout(() => { emProcessamento = false; }, 1000);
+            const disparo = estadoPanico 
+                ? set(panicoRef, { ativo: false, quem: "", respostas: null, audioId: "" }) 
+                : set(panicoRef, { ativo: true, quem: meuNick, timestamp: Date.now(), respostas: {}, audioId: meuAudioId });
+            
+            disparo.finally(() => {
+                setTimeout(() => { emProcessamento = false; }, 500);
+            }).catch(() => { emProcessamento = false; });
+        };
+
+        // Função nova para destravar quem ficou preso
+        window.forcarCancelamento = () => {
+            set(ref(db, 'alerta_global'), { ativo: false, quem: "", respostas: null, audioId: "" });
         };
 
         window.responderChamado = (resposta) => {
@@ -370,7 +368,7 @@
                         const qtdRespostas = Object.keys(respostasGlobais).length;
                         if (qtdOnline > 1 && qtdRespostas >= (qtdOnline - 1)) {
                             setTimeout(() => {
-                                if (estadoPanico) set(ref(db, 'alerta_global'), { ativo: false, quem: "", respostas: null });
+                                if (estadoPanico) forcarCancelamento();
                             }, 2000);
                         }
                     } 
@@ -455,7 +453,6 @@
             onValue(ref(db, 'online'), (snapshot) => {
                 usuariosOnline = snapshot.val() || {};
                 renderizarListaOnline();
-                if(estadoPanico) { const panicoRef = ref(db, 'alerta_global'); }
             });
         }
 
@@ -505,7 +502,7 @@
                     <p class="text-center text-xs text-gray-500 font-black mt-6 mb-2 uppercase tracking-widest border-b border-gray-800 pb-1">${meuNick}</p>
                     
                     <div id="area-panico-pop" class="flex-grow flex flex-col justify-center w-full relative">
-                        <button id="btn-panico-pop" onclick="enviarAlerta()" class="w-full h-full bg-gray-900 border-2 border-gray-700 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-inner px-2">
+                        <button id="btn-panico-pop" onclick="enviarAlerta(); this.blur()" class="w-full h-full bg-gray-900 border-2 border-gray-700 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-inner px-2">
                             <span class="text-4xl mb-2">🚨</span>
                             <span id="txt-pop" class="font-black text-xl text-gray-500 text-center tracking-widest">PÂNICO</span>
                         </button>
@@ -513,14 +510,15 @@
                         <div id="area-resposta-pop" class="hidden w-full h-full flex flex-col items-center justify-center space-y-3">
                             <span class="text-3xl">🚨</span>
                             <p id="txt-quem-pop" class="text-center text-white font-bold text-sm bg-red-900/50 px-2 py-1 rounded w-full"></p>
-                            <button onclick="responderChamado('indo')" class="w-full bg-green-600 py-3 rounded-xl font-black text-white text-lg active:scale-95 border-2 border-green-500 shadow-lg">✅ VOU IR</button>
-                            <button onclick="responderChamado('nao_vai')" class="w-full bg-red-800 py-3 rounded-xl font-black text-white text-lg active:scale-95 border-2 border-red-500 shadow-lg">❌ NÃO VOU</button>
+                            <button onclick="responderChamado('indo'); this.blur()" class="w-full bg-green-600 py-3 rounded-xl font-black text-white text-lg active:scale-95 border-2 border-green-500 shadow-lg">✅ VOU IR</button>
+                            <button onclick="responderChamado('nao_vai'); this.blur()" class="w-full bg-red-800 py-3 rounded-xl font-black text-white text-lg active:scale-95 border-2 border-red-500 shadow-lg">❌ NÃO VOU</button>
                             <div class="w-full mt-2 barra-tempo"><div id="barra-timer-pop" class="barra-preenchimento"></div></div>
                         </div>
 
                         <div id="area-respondido-pop" class="hidden w-full h-full flex flex-col items-center justify-center">
                             <span id="icone-respondido-pop" class="text-5xl mb-2">✅</span>
                             <span id="texto-respondido-pop" class="font-black text-lg text-white uppercase text-center mt-2">ENVIADO</span>
+                            <button onclick="forcarCancelamento()" class="mt-4 px-4 py-2 bg-red-900/30 text-red-400 text-[10px] font-bold rounded-lg border border-red-900/50 hover:bg-red-800/50 transition outline-none">FORÇAR CANCELAMENTO</button>
                         </div>
                     </div>
                 </div>
@@ -529,10 +527,22 @@
             window.enviarAlerta = () => {
                 if(emProcessamento) return;
                 emProcessamento = true;
+                
+                const btnPop = document.getElementById("btn-panico-pop");
+                if (btnPop) btnPop.blur();
+
                 const refPanico = ref(db, 'alerta_global');
-                if (estadoPanico) set(refPanico, { ativo: false, quem: "", respostas: null, audioId: "" });
-                else set(refPanico, { ativo: true, quem: meuNick, timestamp: Date.now(), respostas: {}, audioId: meuAudioId });
-                setTimeout(() => emProcessamento = false, 1000);
+                const disparo = estadoPanico 
+                    ? set(refPanico, { ativo: false, quem: "", respostas: null, audioId: "" })
+                    : set(refPanico, { ativo: true, quem: meuNick, timestamp: Date.now(), respostas: {}, audioId: meuAudioId });
+                
+                disparo.finally(() => {
+                    setTimeout(() => { emProcessamento = false; }, 500);
+                }).catch(() => { emProcessamento = false; });
+            };
+
+            window.forcarCancelamento = () => {
+                set(ref(db, 'alerta_global'), { ativo: false, quem: "", respostas: null, audioId: "" });
             };
 
             window.responderChamado = (resposta) => {
