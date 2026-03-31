@@ -160,8 +160,9 @@
             iniciarModoPopout();
         } else {
             const nickSalvo = localStorage.getItem('anbu_nick_salvo');
-            if(nickSalvo) {
-                document.getElementById('input-nick').value = nickSalvo;
+            if (nickSalvo) {
+            meuNick = nickSalvo;
+            irParaPainel(); // entra direto
             }
         }
 
